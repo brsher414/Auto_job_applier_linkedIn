@@ -118,7 +118,10 @@ def validate_search() -> None | ValueError | TypeError:
 
     check_string(sort_by, "sort_by", ["", "Most recent", "Most relevant"])
     check_string(date_posted, "date_posted", ["", "Any time", "Past month", "Past week", "Past 24 hours"])
-    check_string(salary, "salary")
+    if isinstance(salary, list):
+        check_list(salary, "salary")
+    else:
+        check_string(salary, "salary")
 
     check_boolean(easy_apply_only, "easy_apply_only")
 
@@ -139,6 +142,8 @@ def validate_search() -> None | ValueError | TypeError:
     check_boolean(fair_chance_employer, "fair_chance_employer")
 
     check_boolean(pause_after_filters, "pause_after_filters")
+
+    check_int(minimum_monthly_salary_cny, "minimum_monthly_salary_cny")
 
     check_list(about_company_bad_words, "about_company_bad_words")
     check_list(about_company_good_words, "about_company_good_words")

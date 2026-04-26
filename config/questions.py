@@ -21,30 +21,30 @@ version:    26.01.20.5.08
 # >>>>>>>>>>> Easy Apply Questions & Inputs <<<<<<<<<<<
 
 # Give an relative path of your default resume to be uploaded. If file in not found, will continue using your previously uploaded resume in LinkedIn.
-default_resume_path = "all resumes/default/resume.pdf"      # (In Development)
+default_resume_path = "resume/resume_zhibi_liu_en.pdf"      # (In Development)
 
 # What do you want to answer for questions that ask about years of experience you have, this is different from current_experience? 
-years_of_experience = "5"          # A number in quotes Eg: "0","1","2","3","4", etc.
+years_of_experience = "3"          # A number in quotes Eg: "0","1","2","3","4", etc.
 
 # Do you need visa sponsorship now or in future?
-require_visa = "No"               # "Yes" or "No"
+require_visa = "Yes"               # "Yes" or "No"
 
 # What is the link to your portfolio website, leave it empty as "", if you want to leave this question unanswered
-website = "https://github.com/GodsScion"                        # "www.example.bio" or "" and so on....
+website = ""                        # "www.example.bio" or "" and so on....
 
 # Please provide the link to your LinkedIn profile.
-linkedIn = "https://www.linkedin.com/in/saivigneshgolla/"       # "https://www.linkedin.com/in/example" or "" and so on...
+linkedIn = "https://www.linkedin.com/in/%E4%B9%8B%E7%92%A7-%E5%88%98-85998429a/"       # "https://www.linkedin.com/in/example" or "" and so on...
 
 # What is the status of your citizenship? # If left empty as "", tool will not answer the question. However, note that some companies make it compulsory to be answered
 # Valid options are: "U.S. Citizen/Permanent Resident", "Non-citizen allowed to work for any employer", "Non-citizen allowed to work for current employer", "Non-citizen seeking work authorization", "Canadian Citizen/Permanent Resident" or "Other"
-us_citizenship = "U.S. Citizen/Permanent Resident"
+us_citizenship = "Other"
 
 
 
 ## SOME ANNOYING QUESTIONS BY COMPANIES 🫠 ##
 
 # What to enter in your desired salary question (American and European), What is your expected CTC (South Asian and others)?, only enter in numbers as some companies only allow numbers,
-desired_salary = 1200000          # 80000, 90000, 100000 or 120000 and so on... Do NOT use quotes
+desired_salary = 240000          # 80000, 90000, 100000 or 120000 and so on... Do NOT use quotes
 '''
 Note: If question has the word "lakhs" in it (Example: What is your expected CTC in lakhs), 
 then it will add '.' before last 5 digits and answer. Examples: 
@@ -56,7 +56,7 @@ And if asked in months, then it will divide by 12 and answer. Examples:
 '''
 
 # What is your current CTC? Some companies make it compulsory to be answered in numbers...
-current_ctc = 800000            # 800000, 900000, 1000000 or 1200000 and so on... Do NOT use quotes
+current_ctc = 150000            # 800000, 900000, 1000000 or 1200000 and so on... Do NOT use quotes
 '''
 Note: If question has the word "lakhs" in it (Example: What is your current CTC in lakhs), 
 then it will add '.' before last 5 digits and answer. Examples: 
@@ -84,12 +84,11 @@ then it will divide by 30 or 7 and answer respectively. Examples:
 '''
 
 # Your LinkedIn headline in quotes Eg: "Software Engineer @ Google, Masters in Computer Science", "Recent Grad Student @ MIT, Computer Science"
-linkedin_headline = "Full Stack Developer with Masters in Computer Science and 4+ years of experience" # "Headline" or "" to leave this question unanswered
+linkedin_headline = "Senior Data Specialist | SQL, Python, PyTorch, Data Quality, NLP" # "Headline" or "" to leave this question unanswered
 
 # Your summary in quotes, use \n to add line breaks if using single quotes "Summary".You can skip \n if using triple quotes """Summary"""
 linkedin_summary = """
-I'm a Senior Software Engineer at Amazon with Masters in CS and 4+ years of experience in developing and maintaining Full Stack Web applications and cloud solutions. 
-Specialized in React, Node.js, and Python.
+Data specialist with 3+ years of experience across e-commerce data operations, data quality improvement, market research, and analytics workflow automation. Experienced in SQL, Python, PyTorch, Streamlit, Oracle, Hadoop ecosystem tools, Power BI, and NLP-related data scenarios. I have worked on classification bad-case analysis, rule iteration, high-risk sample selection, OCR/model matching automation, and lightweight tools that improve data validation and delivery efficiency.
 """
 
 '''
@@ -98,14 +97,39 @@ Note: If left empty as "", the tool will not answer the question. However, note 
 
 # Your cover letter in quotes, use \n to add line breaks if using single quotes "Cover Letter".You can skip \n if using triple quotes """Cover Letter""" (This question makes sense though)
 cover_letter = """
-Cover Letter
+Dear Hiring Team,
+
+I am interested in this opportunity because it aligns with my experience in data analysis, data quality improvement, SQL/Python-based investigation, and analytics workflow automation. In my current Senior Data Specialist role, I support large-scale data extraction, validation, classification issue analysis, and process tooling for e-commerce data products. I also have practical experience with PyTorch, BERT-based sample screening, OCR/model matching, and multimodal model API evaluation.
+
+I would welcome the chance to discuss how my analytical background and hands-on tooling experience can support your team.
+
+Best regards,
+Zhibi Liu
 """
 ##> ------ Dheeraj Deshwal : dheeraj9811 Email:dheeraj20194@iiitd.ac.in/dheerajdeshwal9811@gmail.com - Feature ------
 
 # Your user_information_all letter in quotes, use \n to add line breaks if using single quotes "user_information_all".You can skip \n if using triple quotes """user_information_all""" (This question makes sense though)
 # We use this to pass to AI to generate answer from information , Assuing Information contians eg: resume  all the information like name, experience, skills, Country, any illness etc. 
 user_information_all ="""
-User Information
+Name: Zhibi Liu
+Phone: 15921101277
+Email: billoutsider414@outlook.com
+Current location: Shanghai, China
+
+Education:
+Bachelor of Science in Mathematics, The University of Texas at Austin, 2018.08 - 2022.05, GPA 3.6/4.0.
+
+Recent experience:
+Senior Data Specialist, NielsenIQ Shanghai, 2024.12 - Present. Work includes SQL-based data extraction and validation, classification bad-case analysis for BERT + rule workflows, SQL / PL-SQL rule iteration in HUE and Oracle, high-risk sample screening with local BERT vectorization in PyTorch, and Streamlit + Oracle productivity tooling.
+
+Previous experience:
+Business Analyst, Shanghai Xuankai Business Consulting, 2022.11 - 2024.11. Work included questionnaire data processing, desk research, consumer and market analysis, client reporting, and proposal communication for luxury and sportswear-related market research projects.
+
+Projects:
+Multimodal large-model feasibility validation for product attribute recognition; OCR + model-number matching automation using PaddleOCR and rule-based brand/model normalization.
+
+Skills:
+Python, Pandas, NumPy, Scikit-learn, PyTorch, SQL, R, HDFS, HUE, SparkSQL, Oracle, MySQL, Power BI, Cursor, GitHub Copilot, Claude Code, Qwen/Doubao API experience, Microsoft 365, Power Automate.
 """
 ##<
 '''
@@ -113,7 +137,7 @@ Note: If left empty as "", the tool will not answer the question. However, note 
 ''' 
 
 # Name of your most recent employer
-recent_employer = "Not Applicable" # "", "Lala Company", "Google", "Snowflake", "Databricks"
+recent_employer = "NielsenIQ" # "", "Lala Company", "Google", "Snowflake", "Databricks"
 
 # Example question: "On a scale of 1-10 how much experience do you have building web or mobile applications? 1 being very little or only in school, 10 being that you have built and launched applications to real users"
 confidence_level = "8"             # Any number between "1" to "10" including 1 and 10, put it in quotes ""
@@ -139,7 +163,7 @@ Note: Will be treated as False if `run_in_background = True`
 ##
 
 # Do you want to overwrite previous answers?
-overwrite_previous_answers = False # True or False, Note: True or False are case-sensitive
+overwrite_previous_answers = True # True or False, Note: True or False are case-sensitive
 
 
 

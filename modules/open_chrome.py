@@ -14,6 +14,8 @@ Support me: https://github.com/sponsors/GodsScion
 version:    26.01.20.5.08
 '''
 
+import os
+
 from modules.helpers import get_default_temp_profile, make_directories
 from config.settings import run_in_background, stealth_mode, disable_extensions, safe_mode, file_name, failed_file_name, logs_folder_path, generated_resume_path
 from config.questions import default_resume_path
@@ -28,10 +30,34 @@ from selenium.webdriver.support.ui import WebDriverWait
 from modules.helpers import find_default_profile_directory, critical_error_log, print_lg
 from selenium.common.exceptions import SessionNotCreatedException
 
+chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+
+
+def get_chrome_major_version() -> int | None:
+    '''
+    Gets the installed Chrome major version so undetected-chromedriver downloads the matching driver.
+    '''
+    try:
+        if not os.path.exists(chrome_path):
+            return None
+        chrome_folder = os.path.dirname(chrome_path)
+        versions = [
+            name for name in os.listdir(chrome_folder)
+            if os.path.isdir(os.path.join(chrome_folder, name)) and name[:1].isdigit()
+        ]
+        if versions:
+            versions.sort(reverse=True)
+            return int(versions[0].split(".")[0])
+    except Exception as e:
+        print_lg("Failed to detect Chrome version automatically.", e)
+    return None
+
 def createChromeSession(isRetry: bool = False):
     make_directories([file_name,failed_file_name,logs_folder_path+"/screenshots",default_resume_path,generated_resume_path+"/temp"])
     # Set up WebDriver with Chrome Profile
     options = uc.ChromeOptions() if stealth_mode else Options()
+    if os.path.exists(chrome_path):
+        options.binary_location = chrome_path
     if run_in_background:   options.add_argument("--headless")
     if disable_extensions:  options.add_argument("--disable-extensions")
 
@@ -50,7 +76,12 @@ def createChromeSession(isRetry: bool = False):
         # except (FileNotFoundError, PermissionError) as e: 
         #     print_lg("(Undetected Mode) Got '{}' when using pre-installed ChromeDriver.".format(type(e).__name__)) 
             print_lg("Downloading Chrome Driver... This may take some time. Undetected mode requires download every run!")
-            driver = uc.Chrome(options=options)
+            chrome_major_version = get_chrome_major_version()
+            if chrome_major_version:
+                print_lg(f"Detected Chrome major version: {chrome_major_version}")
+                driver = uc.Chrome(options=options, version_main=chrome_major_version)
+            else:
+                driver = uc.Chrome(options=options)
     else: driver = webdriver.Chrome(options=options) #, service=Service(executable_path="C:\\Program Files\\Google\\Chrome\\chromedriver-win64\\chromedriver.exe"))
     driver.maximize_window()
     wait = WebDriverWait(driver, 5)

@@ -1,0 +1,6 @@
+2026/04/25-11:22:27.532 380 Reusing MANIFEST D:\code\Auto_job_applier_linkedIn\.chrome-profile\Default\Local Storage\leveldb/MANIFEST-000001
+2026/04/25-11:22:27.535 380 Recovering log #4
+2026/04/25-11:22:27.536 380 Reusing old log D:\code\Auto_job_applier_linkedIn\.chrome-profile\Default\Local Storage\leveldb/000004.log 
+2026/04/25-11:30:24.136 4104 Level-0 table #8: started
+2026/04/25-11:30:24.138 4104 Level-0 table #8: 21202 bytes OK
+2026/04/25-11:30:24.139 4104 Delete type=0 #4

@@ -108,12 +108,13 @@ def is_logged_in_LN() -> bool:
     Function to check if user is logged-in in LinkedIn
     * Returns: `True` if user is logged-in or `False` if not
     '''
-    if driver.current_url == "https://www.linkedin.com/feed/": return True
+    current_url = driver.current_url.lower()
+    if current_url.startswith("https://www.linkedin.com/feed"): return True
+    if "/login" in current_url or "/checkpoint" in current_url: return False
     if try_linkText(driver, "Sign in"): return False
-    if try_xp(driver, '//button[@type="submit" and contains(text(), "Sign in")]'):  return False
+    if try_xp(driver, '//button[@type="submit" and contains(text(), "Sign in")]', False): return False
     if try_linkText(driver, "Join now"): return False
-    print_lg("Didn't find Sign in link, so assuming user is logged in!")
-    return True
+    return False
 
 
 def login_LN() -> None:
@@ -181,26 +182,82 @@ def get_applied_job_ids() -> set[str]:
 
 
 
-def set_search_location() -> None:
+def set_search_location(location_text: str | None = None) -> None:
     '''
-    Function to set search location
+    Function to set the top search-bar location.
     '''
-    if search_location.strip():
+    target_location = (location_text if location_text is not None else search_location).strip()
+    if target_location:
         try:
-            print_lg(f'Setting search location as: "{search_location.strip()}"')
-            search_location_ele = try_xp(driver, ".//input[@aria-label='City, state, or zip code'and not(@disabled)]", False) #  and not(@aria-hidden='true')]")
-            text_input(actions, search_location_ele, search_location, "Search Location")
+            print_lg(f'Setting top search location as: "{target_location}"')
+            search_location_ele = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((
+                By.XPATH,
+                ".//input[(contains(@aria-label, 'City') or contains(@aria-label, 'Location') or "
+                "contains(@placeholder, 'City') or contains(@placeholder, 'Location')) and not(@disabled)]"
+            )))
+            search_location_ele.click()
+            search_location_ele.send_keys(Keys.CONTROL + "a")
+            search_location_ele.send_keys(target_location)
+            sleep(1)
+            actions.send_keys(Keys.ENTER).perform()
+            buffer(1)
+            search_button = try_xp(driver, './/button[normalize-space(.)="Search" or @aria-label="Search"]', False)
+            if search_button:
+                search_button.click()
+                buffer(2)
         except ElementNotInteractableException:
             try_xp(driver, ".//label[@class='jobs-search-box__input-icon jobs-search-box__keywords-label']")
             actions.send_keys(Keys.TAB, Keys.TAB).perform()
             actions.key_down(Keys.CONTROL).send_keys("a").key_up(Keys.CONTROL).perform()
-            actions.send_keys(search_location.strip()).perform()
+            actions.send_keys(target_location).perform()
             sleep(2)
             actions.send_keys(Keys.ENTER).perform()
             try_xp(driver, ".//button[@aria-label='Cancel']")
         except Exception as e:
             try_xp(driver, ".//button[@aria-label='Cancel']")
             print_lg("Failed to update search location, continuing with default location!", e)
+
+
+def click_labeled_button(scope: WebElement, labels: list[str], time: float = 3.0, scroll_top: bool = False) -> WebElement | bool:
+    '''
+    Clicks a button/span by one of several English labels.
+    '''
+    for label in labels:
+        try:
+            button = WebDriverWait(scope, time).until(EC.presence_of_element_located((
+                By.XPATH,
+                f'.//button[normalize-space(.)="{label}" or .//span[normalize-space(.)="{label}"]]'
+                f' | .//span[normalize-space(.)="{label}"]/ancestor::button[1]'
+            )))
+            scroll_to_view(driver, button, scroll_top)
+            button.click()
+            buffer(click_gap)
+            return button
+        except Exception:
+            continue
+    print_lg(f"Click Failed! Didn't find any of {labels}")
+    return False
+
+
+def click_show_results_button() -> WebElement | bool:
+    '''
+    Clicks the filters modal show-results button.
+    '''
+    xpaths = [
+        '//button[contains(translate(@aria-label, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "apply current filters to show")]',
+        '//button[contains(normalize-space(.), "Show results")]',
+    ]
+    for xpath in xpaths:
+        try:
+            button = WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.XPATH, xpath)))
+            scroll_to_view(driver, button)
+            button.click()
+            buffer(click_gap)
+            return button
+        except Exception:
+            continue
+    print_lg("Click Failed! Didn't find show results button")
+    return False
 
 
 def apply_filters() -> None:
@@ -212,7 +269,8 @@ def apply_filters() -> None:
     try:
         recommended_wait = 1 if click_gap < 1 else 0
 
-        wait.until(EC.presence_of_element_located((By.XPATH, '//button[normalize-space()="All filters"]'))).click()
+        if not click_labeled_button(driver, ["All filters"], 5):
+            raise NoSuchElementException("Could not find All filters button")
         buffer(recommended_wait)
 
         wait_span_click(driver, sort_by)
@@ -227,11 +285,18 @@ def apply_filters() -> None:
         multi_sel_noWait(driver, on_site)
         if job_type or on_site: buffer(recommended_wait)
 
-        if easy_apply_only: boolean_button_click(driver, actions, "Easy Apply")
+        if easy_apply_only:
+            try:
+                boolean_button_click(driver, actions, "LinkedIn Apply")
+                linkedin_apply_switch = driver.find_element(By.XPATH, './/h3[normalize-space()="LinkedIn Apply"]/ancestor::fieldset//input[@role="switch"]')
+                if not linkedin_apply_switch.is_selected():
+                    boolean_button_click(driver, actions, "Easy Apply")
+            except Exception:
+                boolean_button_click(driver, actions, "Easy Apply")
         
-        multi_sel_noWait(driver, location)
-        multi_sel_noWait(driver, industry)
-        if location or industry: buffer(recommended_wait)
+        for industry_filter in industry:
+            dynamic_filter_click(driver, actions, industry_filter, "industry")
+        if industry: buffer(recommended_wait)
 
         multi_sel_noWait(driver, job_function)
         multi_sel_noWait(driver, job_titles)
@@ -241,15 +306,20 @@ def apply_filters() -> None:
         if in_your_network: boolean_button_click(driver, actions, "In your network")
         if fair_chance_employer: boolean_button_click(driver, actions, "Fair Chance Employer")
 
-        wait_span_click(driver, salary)
+        if isinstance(salary, list):
+            for salary_option in salary:
+                if wait_span_click(driver, salary_option):
+                    break
+        else:
+            wait_span_click(driver, salary)
         buffer(recommended_wait)
         
         multi_sel_noWait(driver, benefits)
         multi_sel_noWait(driver, commitments)
         if benefits or commitments: buffer(recommended_wait)
 
-        show_results_button: WebElement = driver.find_element(By.XPATH, '//button[contains(translate(@aria-label, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"), "apply current filters to show")]')
-        show_results_button.click()
+        if not click_show_results_button():
+            raise NoSuchElementException("Could not find show results button")
 
         global pause_after_filters
         if pause_after_filters and "Turn off Pause after search" == pyautogui.confirm("These are your configured search results and filter. It is safe to change them while this dialog is open, any changes later could result in errors and skipping this search run.", "Please check your results", ["Turn off Pause after search", "Look's good, Continue"]):
@@ -257,7 +327,11 @@ def apply_filters() -> None:
 
     except Exception as e:
         print_lg("Setting the preferences failed!")
-        pyautogui.confirm(f"Faced error while applying filters. Please make sure correct filters are selected, click on show results and click on any button of this dialog, I know it sucks. Can't turn off Pause after search when error occurs! ERROR: {e}", ["Doesn't look good, but Continue XD", "Look's good, Continue"])
+        pyautogui.confirm(
+            text=f"Faced error while applying filters. Please make sure correct filters are selected, click on show results and click on any button of this dialog, I know it sucks. Can't turn off Pause after search when error occurs! ERROR: {e}",
+            title="Filter Error",
+            buttons=["Doesn't look good, but Continue XD", "Look's good, Continue"],
+        )
         # print_lg(e)
 
 
@@ -277,6 +351,84 @@ def get_page_info() -> tuple[WebElement | None, int | None]:
         print_lg(e)
     return pagination_element, current_page
 
+
+
+def extract_visible_monthly_salary_cny(text: str) -> int | None:
+    '''
+    Extract the highest monthly CNY value from LinkedIn's visible salary card text.
+    Examples: CN¥25K/month - CN¥35K/month, CN¥12000/month - CN¥18000/month.
+    '''
+    normalized_text = text.replace(",", "").replace("，", "").replace("－", "-")
+    salary_values = []
+    amount = r'(?:CN\s*)?[¥￥]\s*(\d+(?:\.\d+)?)\s*([kK]?)\s*/\s*(?:month|月)'
+    salary_pairs = re.findall(rf'{amount}\s*[-~—–]\s*{amount}', normalized_text)
+    single_salaries = re.findall(amount, normalized_text)
+
+    for match in salary_pairs:
+        _, _, upper_value, upper_unit = match
+        multiplier = 1000 if upper_unit.lower() == "k" else 1
+        salary_values.append(round(float(upper_value) * multiplier))
+
+    for value, unit in single_salaries:
+        multiplier = 1000 if unit.lower() == "k" else 1
+        salary_values.append(round(float(value) * multiplier))
+
+    if not salary_values:
+        return None
+    return max(salary_values)
+
+
+def extract_visible_salary_snippets(text: str) -> list[str]:
+    '''
+    Returns the raw visible salary snippets found in LinkedIn card text.
+    '''
+    normalized_text = text.replace(",", "").replace("，", "").replace("－", "-")
+    amount = r'(?:CN\s*)?[¥￥]\s*\d+(?:\.\d+)?\s*[kK]?\s*/\s*(?:month|月)'
+    salary_range = rf'{amount}\s*[-~—–]\s*{amount}'
+    snippets = re.findall(salary_range, normalized_text)
+    snippets.extend(re.findall(amount, normalized_text))
+
+    deduped_snippets = []
+    for snippet in snippets:
+        clean_snippet = re.sub(r'\s+', ' ', snippet).strip()
+        if clean_snippet not in deduped_snippets:
+            deduped_snippets.append(clean_snippet)
+    return deduped_snippets
+
+
+def should_skip_for_visible_salary(text: str) -> tuple[bool, str | None]:
+    '''
+    Skip only when LinkedIn's visible salary field clearly tops out below the configured monthly minimum.
+    '''
+    if minimum_monthly_salary_cny <= 0:
+        return False, None
+    monthly_salary = extract_visible_monthly_salary_cny(text)
+    if monthly_salary is None:
+        return False, None
+    if monthly_salary < minimum_monthly_salary_cny:
+        return True, f"LinkedIn visible salary ceiling {monthly_salary} CNY/month is below {minimum_monthly_salary_cny} CNY/month."
+    print_lg(f"Detected LinkedIn visible salary ceiling: {monthly_salary} CNY/month")
+    return False, None
+
+
+def get_visible_salary_text(job: WebElement) -> str:
+    '''
+    Collects salary text from the left job card and the opened right-side top card.
+    '''
+    texts = [job.text]
+    salary_card_classes = [
+        "jobs-unified-top-card__job-insight",
+        "job-details-jobs-unified-top-card__job-insight",
+        "jobs-unified-top-card",
+        "job-details-jobs-unified-top-card__container",
+        "jobs-details__main-content",
+    ]
+    for class_name in salary_card_classes:
+        try:
+            texts.append(driver.find_element(By.CLASS_NAME, class_name).text)
+        except Exception:
+            pass
+    return "\n".join(text for text in texts if text)
 
 
 def get_job_main_details(job: WebElement, blacklisted_companies: set, rejected_jobs: set) -> tuple[str, str, str, str, str, bool]:
@@ -325,6 +477,17 @@ def get_job_main_details(job: WebElement, blacklisted_companies: set, rejected_j
         discard_job()
         job_details_button.click() # To pass the error outside
     buffer(click_gap)
+    if not skip and is_china_work_location(work_location):
+        salary_text = get_visible_salary_text(job)
+        salary_snippets = extract_visible_salary_snippets(salary_text)
+        if salary_snippets:
+            print_lg(f'Visible salary card text for "{title} | {company}": {" | ".join(salary_snippets)}')
+        else:
+            print_lg(f'No visible CNY salary found for "{title} | {company}". Salary filter will not skip it.')
+        salary_skip, salary_message = should_skip_for_visible_salary(salary_text)
+        if salary_skip:
+            print_lg(f'Skipping "{title} | {company}" job. Job ID: {job_id}! {salary_message}')
+            skip = True
     return (job_id,title,company,work_location,work_style,skip)
 
 
@@ -361,7 +524,6 @@ def extract_years_of_experience(text: str) -> int:
         print_lg(f'\n{text}\n\nCouldn\'t find experience requirement in About the Job!')
         return 0
     return max([int(match) for match in matches if int(match) <= 12])
-
 
 
 def get_job_description(
@@ -431,13 +593,54 @@ def upload_resume(modal: WebElement, resume: str) -> tuple[bool, str]:
     except: return False, "Previous resume"
 
 # Function to answer common questions for Easy Apply
-def answer_common_questions(label: str, answer: str) -> str:
-    if 'sponsorship' in label or 'visa' in label: answer = require_visa
+def is_china_work_location(work_location: str) -> bool:
+    '''
+    Checks whether a LinkedIn work location appears to be in mainland China.
+    '''
+    normalized_location = (work_location or "").lower()
+    china_location_tokens = [
+        "china", "shanghai", "beijing", "shenzhen", "guangzhou", "hangzhou",
+        "suzhou", "nanjing", "chengdu", "wuhan", "xian", "xi'an", "tianjin",
+        "qingdao", "ningbo", "xiamen", "chongqing"
+    ]
+    return any(token in normalized_location for token in china_location_tokens)
+
+
+def reverse_yes_no(answer: str) -> str:
+    '''
+    Reverses a Yes/No answer while leaving unexpected answers unchanged.
+    '''
+    if answer == "Yes":
+        return "No"
+    if answer == "No":
+        return "Yes"
+    return answer
+
+
+def get_visa_sponsorship_answer(label: str, work_location: str, work_style: str) -> str:
+    '''
+    Answers visa sponsorship dynamically from the job's location and work style.
+    '''
+    if is_china_work_location(work_location):
+        sponsorship_answer = "No"
+    elif (work_style or "").strip().lower() == "remote":
+        sponsorship_answer = "Yes"
+    else:
+        sponsorship_answer = require_visa
+
+    if "without sponsorship" in label or "without visa sponsorship" in label:
+        return reverse_yes_no(sponsorship_answer)
+    return sponsorship_answer
+
+
+def answer_common_questions(label: str, answer: str, work_location: str, work_style: str) -> str:
+    if 'sponsorship' in label or 'visa' in label:
+        answer = get_visa_sponsorship_answer(label, work_location, work_style)
     return answer
 
 
 # Function to answer the questions for Easy Apply
-def answer_questions(modal: WebElement, questions_list: set, work_location: str, job_description: str | None = None ) -> set:
+def answer_questions(modal: WebElement, questions_list: set, work_location: str, work_style: str, job_description: str | None = None ) -> set:
     # Get all questions from the page
      
     all_questions = modal.find_elements(By.XPATH, ".//div[@data-test-form-element]")
@@ -469,6 +672,8 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                 ##> ------ WINDY_WINDWARD Email:karthik.sarode23@gmail.com - Added fuzzy logic to answer location based questions ------
                 if 'email' in label or 'phone' in label: 
                     answer = prev_answer
+                elif any("+86" in option for option in optionsText):
+                    answer = next((option for option in optionsText if "+86" in option), prev_answer)
                 elif 'gender' in label or 'sex' in label: 
                     answer = gender
                 elif 'disability' in label: 
@@ -486,7 +691,7 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                     else:
                         answer = work_location
                 else: 
-                    answer = answer_common_questions(label,answer)
+                    answer = answer_common_questions(label, answer, work_location, work_style)
                 try: 
                     select.select_by_visible_text(answer)
                 except NoSuchElementException as e:
@@ -552,7 +757,7 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                 elif 'veteran' in label or 'protected' in label: answer = veteran_status
                 elif 'disability' in label or 'handicapped' in label: 
                     answer = disability_status
-                else: answer = answer_common_questions(label,answer)
+                else: answer = answer_common_questions(label, answer, work_location, work_style)
                 foundOption = try_xp(radio, f".//label[normalize-space()='{answer}']", False)
                 if foundOption: 
                     actions.move_to_element(foundOption).click().perform()
@@ -638,7 +843,7 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                 elif 'state' in label or 'province' in label: answer = state
                 elif 'zip' in label or 'postal' in label or 'code' in label: answer = zipcode
                 elif 'country' in label: answer = country
-                else: answer = answer_common_questions(label,answer)
+                else: answer = answer_common_questions(label, answer, work_location, work_style)
                 ##> ------ Yang Li : MARKYangL - Feature ------
                 if answer == "":
                     if use_AI and aiClient:
@@ -856,7 +1061,8 @@ def submitted_jobs(job_id: str, title: str, company: str, work_location: str, wo
 # Function to discard the job application
 def discard_job() -> None:
     actions.send_keys(Keys.ESCAPE).perform()
-    wait_span_click(driver, 'Discard', 2)
+    if not click_labeled_button(driver, ["Discard", "Cancel"], 2):
+        actions.send_keys(Keys.ESCAPE).perform()
 
 
 
@@ -1045,7 +1251,7 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                             try:
                                 errored = ""
                                 modal = find_by_class(driver, "jobs-easy-apply-modal")
-                                wait_span_click(modal, "Next", 1)
+                                click_labeled_button(modal, ["Next", "Continue"], 1)
                                 # if description != "Unknown":
                                 #     resume = create_custom_resume(description)
                                 resume = "Previous resume"
@@ -1064,10 +1270,12 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                                         screenshot_name = screenshot(driver, job_id, "Failed at questions")
                                         errored = "stuck"
                                         raise Exception("Seems like stuck in a continuous loop of next, probably because of new questions.")
-                                    questions_list = answer_questions(modal, questions_list, work_location, job_description=description)
+                                    questions_list = answer_questions(modal, questions_list, work_location, work_style, job_description=description)
                                     if useNewResume and not uploaded: uploaded, resume = upload_resume(modal, default_resume_path)
-                                    try: next_button = modal.find_element(By.XPATH, './/span[normalize-space(.)="Review"]') 
-                                    except NoSuchElementException:  next_button = modal.find_element(By.XPATH, './/button[contains(span, "Next")]')
+                                    try:
+                                        next_button = modal.find_element(By.XPATH, './/span[normalize-space(.)="Review"]/ancestor::button[1]')
+                                    except NoSuchElementException:
+                                        next_button = modal.find_element(By.XPATH, './/button[contains(., "Next") or contains(., "Continue")]')
                                     try: next_button.click()
                                     except ElementClickInterceptedException: break    # Happens when it tries to click Next button in About Company photos section
                                     buffer(click_gap)
@@ -1077,7 +1285,7 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                                 if questions_list and errored != "stuck": 
                                     print_lg("Answered the following questions...", questions_list)
                                     print("\n\n" + "\n".join(str(question) for question in questions_list) + "\n\n")
-                                wait_span_click(driver, "Review", 1, scrollTop=True)
+                                click_labeled_button(driver, ["Review"], 1, scroll_top=True)
                                 cur_pause_before_submit = pause_before_submit
                                 if errored != "stuck" and cur_pause_before_submit:
                                     decision = pyautogui.confirm('1. Please verify your information.\n2. If you edited something, please return to this final screen.\n3. DO NOT CLICK "Submit Application".\n\n\n\n\nYou can turn off "Pause before submit" setting in config.py\nTo TEMPORARILY disable pausing, click "Disable Pause"', "Confirm your information",["Disable Pause", "Discard Application", "Submit Application"])
@@ -1085,12 +1293,12 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                                     pause_before_submit = False if "Disable Pause" == decision else True
                                     # try_xp(modal, ".//span[normalize-space(.)='Review']")
                                 follow_company(modal)
-                                if wait_span_click(driver, "Submit application", 2, scrollTop=True): 
+                                if click_labeled_button(driver, ["Submit application"], 2, scroll_top=True): 
                                     date_applied = datetime.now()
-                                    if not wait_span_click(driver, "Done", 2): actions.send_keys(Keys.ESCAPE).perform()
+                                    if not click_labeled_button(driver, ["Done", "Close"], 2): actions.send_keys(Keys.ESCAPE).perform()
                                 elif errored != "stuck" and cur_pause_before_submit and "Yes" in pyautogui.confirm("You submitted the application, didn't you 😒?", "Failed to find Submit Application!", ["Yes", "No"]):
                                     date_applied = datetime.now()
-                                    wait_span_click(driver, "Done", 2)
+                                    click_labeled_button(driver, ["Done", "Close"], 2)
                                 else:
                                     print_lg("Since, Submit Application failed, discarding the job application...")
                                     # if screenshot_name == "Not Available":  screenshot_name = screenshot(driver, job_id, "Failed to click Submit application")
@@ -1130,7 +1338,11 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                     print_lg("Couldn't find pagination element, probably at the end page of results!")
                     break
                 try:
-                    pagination_element.find_element(By.XPATH, f"//button[@aria-label='Page {current_page+1}']").click()
+                    next_page = current_page + 1
+                    pagination_element.find_element(
+                        By.XPATH,
+                        f'.//button[normalize-space(.)="{next_page}" or contains(@aria-label, "Page {next_page}")]'
+                    ).click()
                     print_lg(f"\n>-> Now on Page {current_page+1} \n")
                 except NoSuchElementException:
                     print_lg(f"\n>-> Didn't find Page {current_page+1}. Probably at the end page of results!\n")
@@ -1150,13 +1362,42 @@ def apply_to_jobs(search_terms: list[str]) -> None:
 
         
 def run(total_runs: int) -> int:
+    global location, on_site, search_location
     if dailyEasyApplyLimitReached:
         return total_runs
     print_lg("\n########################################################################################################################\n")
     print_lg(f"Date and Time: {datetime.now()}")
     print_lg(f"Cycle number: {total_runs}")
     print_lg(f"Currently looking for jobs posted within '{date_posted}' and sorting them by '{sort_by}'")
-    apply_to_jobs(search_terms)
+    configured_search_rounds = globals().get("search_rounds", [])
+    if configured_search_rounds:
+        default_location = location
+        default_on_site = on_site
+        default_search_location = search_location
+        for search_round in configured_search_rounds:
+            if dailyEasyApplyLimitReached:
+                break
+            on_site = search_round.get("on_site", default_on_site)
+            round_search_terms = search_round.get("search_terms", search_terms)
+            round_locations = search_round.get("location", default_location)
+            if isinstance(round_locations, str):
+                round_locations = [round_locations]
+            if not round_locations:
+                round_locations = [default_search_location]
+            print_lg(f'\n================ Search round: {search_round.get("name", "Unnamed")} ================\n')
+            print_lg(f"Work styles: {on_site}")
+            for round_location in round_locations:
+                if dailyEasyApplyLimitReached:
+                    break
+                search_location = round_location
+                location = []
+                print_lg(f'Top search location: "{search_location}"')
+                apply_to_jobs(round_search_terms)
+        location = default_location
+        on_site = default_on_site
+        search_location = default_search_location
+    else:
+        apply_to_jobs(search_terms)
     print_lg("########################################################################################################################\n")
     if not dailyEasyApplyLimitReached:
         print_lg("Sleeping for 10 min...")
@@ -1240,7 +1481,7 @@ def main() -> None:
         print_lg("Browser window closed or session is invalid. Exiting.", e)
     except Exception as e:
         critical_error_log("In Applier Main", e)
-        pyautogui.alert(e,alert_title)
+        pyautogui.alert(str(e), alert_title)
     finally:
         summary = "Total runs: {}\nJobs Easy Applied: {}\nExternal job links collected: {}\nTotal applied or collected: {}\nFailed jobs: {}\nIrrelevant jobs skipped: {}\n".format(total_runs,easy_applied_count,external_jobs_count,easy_applied_count + external_jobs_count,failed_count,skip_count)
         print_lg(summary)

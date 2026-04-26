@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zhibi Liu - Resume</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #eef3f7;
+      color: #1c2633;
+      font-family: Arial, "Helvetica Neue", sans-serif;
+    }
+
+    .page {
+      width: 190mm;
+      min-height: 279mm;
+      margin: 0 auto;
+      background: #fff;
+      padding: 8.2mm 9.2mm 8mm;
+      position: relative;
+    }
+
+    .page::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(224, 236, 246, 0.28) 0%, rgba(255, 255, 255, 0) 28%),
+        radial-gradient(circle at top right, rgba(86, 148, 205, 0.07), transparent 25%);
+      pointer-events: none;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .top {
+      border-bottom: 1px solid #d8e3ed;
+      padding-bottom: 4mm;
+      margin-bottom: 3.5mm;
+    }
+
+    .name-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8mm;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 27px;
+      font-weight: 780;
+      line-height: 1.05;
+      color: #17324a;
+      letter-spacing: 0;
+    }
+
+    .headline {
+      margin-top: 1.2mm;
+      font-size: 10.7px;
+      color: #4e6477;
+      line-height: 1.35;
+      font-weight: 600;
+    }
+
+    .meta {
+      flex: 0 0 auto;
+      font-size: 10.35px;
+      color: #58697a;
+      text-align: right;
+      line-height: 1.45;
+      padding-top: 0.5mm;
+      white-space: nowrap;
+    }
+
+    .summary {
+      margin: 3mm 0 0;
+      font-size: 10.45px;
+      line-height: 1.58;
+      color: #293748;
+    }
+
+    section {
+      margin-top: 3.45mm;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 2.8mm;
+      font-size: 10.9px;
+      font-weight: 760;
+      color: #244969;
+      margin-bottom: 2mm;
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+    }
+
+    .section-title::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #79b8e8;
+    }
+
+    .section-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, #d6e2ed, transparent);
+    }
+
+    .entry {
+      margin-bottom: 2.55mm;
+    }
+
+    .entry-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8mm;
+      align-items: flex-start;
+    }
+
+    .entry-main {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .company {
+      font-size: 11.55px;
+      font-weight: 760;
+      color: #182a3c;
+      line-height: 1.32;
+    }
+
+    .role {
+      margin-top: 0.45mm;
+      font-size: 10.2px;
+      color: #607283;
+      line-height: 1.38;
+    }
+
+    .dates {
+      flex: 0 0 auto;
+      font-size: 9.9px;
+      color: #678098;
+      white-space: nowrap;
+      padding-top: 0.2mm;
+      line-height: 1.35;
+    }
+
+    .bullets {
+      margin: 1.05mm 0 0;
+      padding-left: 4.25mm;
+    }
+
+    .bullets li {
+      margin: 0.78mm 0;
+      font-size: 9.95px;
+      line-height: 1.43;
+      color: #243648;
+    }
+
+    .edu-note {
+      margin-top: 0.85mm;
+      font-size: 10px;
+      color: #506274;
+      line-height: 1.42;
+    }
+
+    .skill-row {
+      padding: 1.4mm 2mm;
+      border: 1px solid #dbe8f3;
+      border-radius: 8px;
+      background: #fbfdff;
+      margin: 0.78mm 0;
+    }
+
+    .skill-label {
+      font-size: 9.65px;
+      font-weight: 760;
+      color: #214666;
+      margin-bottom: 0.5mm;
+    }
+
+    .skill-body {
+      font-size: 9.8px;
+      line-height: 1.42;
+      color: #334557;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="content">
+      <header class="top">
+        <div class="name-row">
+          <div>
+            <h1>Zhibi Liu</h1>
+            <div class="headline">Senior Data Specialist | SQL, Python, PyTorch, Data Quality, NLP</div>
+          </div>
+          <div class="meta">15921101277 | billoutsider414@outlook.com<br>Shanghai, China</div>
+        </div>
+        <p class="summary">
+          Data specialist with hands-on experience in e-commerce data processing, data quality optimization, SQL-based investigation, rule iteration, sample screening, and workflow tooling. Experienced across data analysis, machine learning, and natural language processing scenarios, with a track record of translating business requirements into reliable data operations and lightweight internal tools.
+        </p>
+      </header>
+
+      <section>
+        <div class="section-title">Education</div>
+        <div class="entry">
+          <div class="entry-head">
+            <div class="entry-main">
+              <div class="company">The University of Texas at Austin</div>
+              <div class="role">Bachelor of Science in Mathematics</div>
+            </div>
+            <div class="dates">Aug 2018 - May 2022</div>
+          </div>
+          <div class="edu-note">GPA: 3.6 / 4.0</div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-title">Experience</div>
+        <div class="entry">
+          <div class="entry-head">
+            <div class="entry-main">
+              <div class="company">NielsenIQ, Shanghai Branch</div>
+              <div class="role">Senior Data Specialist</div>
+            </div>
+            <div class="dates">Dec 2024 - Present</div>
+          </div>
+          <ul class="bullets">
+            <li>Supported multi-dimensional data requests from client-facing teams by extracting, cleaning, and validating large datasets with SQL, enabling configuration impact analysis and before/after comparisons for product classification results.</li>
+            <li>Investigated bad cases in a BERT + rules product classification workflow, explained data quality issues to clients, and converted recurring error patterns into SQL / PL-SQL correction rules deployed in HUE and Oracle pipelines.</li>
+            <li>Reduced final delivery error rate from approximately 20% to below 10% through iterative issue diagnosis, rule refinement, and structured validation.</li>
+            <li>Designed a high-risk sample screening approach using locally deployed BERT vectorization in PyTorch, delivering 140,000+ candidate samples from three years of historical data for manual validation, supplemental labeling, and future model retraining.</li>
+            <li>Built a lightweight Streamlit + Oracle productivity tool to streamline Excel ingestion, ad hoc data pulls, configuration lookup, and result comparison workflows.</li>
+          </ul>
+        </div>
+
+        <div class="entry">
+          <div class="entry-head">
+            <div class="entry-main">
+              <div class="company">Shanghai Xuankai Business Consulting Co., Ltd.</div>
+              <div class="role">Business Analyst</div>
+            </div>
+            <div class="dates">Nov 2022 - Nov 2024</div>
+          </div>
+          <ul class="bullets">
+            <li>Participated in market research projects for luxury goods and sports footwear/apparel brands, covering questionnaire data processing, desk research, and consumer and market information analysis.</li>
+            <li>Synthesized research findings into client-facing insights, prepared presentation materials, and supported proposal communication to translate research outputs into business recommendations.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-title">Projects</div>
+        <div class="entry">
+          <div class="entry-head">
+            <div class="entry-main">
+              <div class="company">Multimodal LLM Validation for Product Attribute Recognition</div>
+            </div>
+            <div class="dates">Feb 2026 - Present</div>
+          </div>
+          <ul class="bullets">
+            <li>Designed batch concurrent API calling scripts and iterated prompts to evaluate multimodal model feasibility for product attribute recognition where text-only workflows were insufficient.</li>
+            <li>Identified generalizable attributes such as specifications and packaging type as stronger candidates for practical implementation and complex sample triage.</li>
+          </ul>
+        </div>
+
+        <div class="entry">
+          <div class="entry-head">
+            <div class="entry-main">
+              <div class="company">OCR + Model Number Matching Automation</div>
+            </div>
+            <div class="dates">Aug 2025 - Dec 2025</div>
+          </div>
+          <ul class="bullets">
+            <li>Used PaddleOCR to extract product model information for electronics and durable goods catalog maintenance, then combined field cleaning and brand naming rule analysis to improve matching and code-linking efficiency.</li>
+            <li>Derived brand/model naming rules for products that could not be directly matched, focusing manual review on out-of-rule samples.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-title">Skills</div>
+        <div class="skill-row">
+          <div class="skill-label">Data Analysis and Modeling</div>
+          <div class="skill-body">Python (Pandas, NumPy, Scikit-learn, PyTorch), SQL, R</div>
+        </div>
+        <div class="skill-row">
+          <div class="skill-label">Data Platforms and Tools</div>
+          <div class="skill-body">Hadoop ecosystem (HDFS, HUE, SparkSQL), Oracle, MySQL, Power BI, Streamlit</div>
+        </div>
+        <div class="skill-row">
+          <div class="skill-label">AI Tools and LLMs</div>
+          <div class="skill-body">Cursor, GitHub Copilot, Claude Code; practical experience with Qwen and Doubao API calls</div>
+        </div>
+        <div class="skill-row">
+          <div class="skill-label">Office and Automation</div>
+          <div class="skill-body">Microsoft 365 (Excel, PowerPoint, Word), Power Automate</div>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

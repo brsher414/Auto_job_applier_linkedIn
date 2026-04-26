@@ -89,6 +89,8 @@ def boolean_button_click(driver: WebDriver, actions: ActionChains, text: str) ->
     try:
         list_container = driver.find_element(By.XPATH, './/h3[normalize-space()="'+text+'"]/ancestor::fieldset')
         button = list_container.find_element(By.XPATH, './/input[@role="switch"]')
+        if button.is_selected():
+            return
         scroll_to_view(driver, button)
         actions.move_to_element(button).click().perform()
         buffer(click_gap)
@@ -144,6 +146,24 @@ def try_find_by_classes(driver: WebDriver, classes: list[str]) -> WebElement | V
         except: pass
     raise ValueError("Failed to find an element with given classes")
 
+def filter_search_click(driver: WebDriver, actions: ActionChains, filter_name: str, text: str) -> bool:
+    '''
+    Searches and adds a dynamic filter value.
+    '''
+    try:
+        wait_span_click(driver, f"Add {filter_name}", 1)
+        search = driver.find_element(By.XPATH, f"(.//input[@placeholder='Add {filter_name}'])[1]")
+        search.send_keys(Keys.CONTROL + "a")
+        search.send_keys(text)
+        buffer(3)
+        actions.send_keys(Keys.DOWN).perform()
+        actions.send_keys(Keys.ENTER).perform()
+        print_lg(f'Tried searching and adding "{text}" to {filter_name}')
+        return True
+    except Exception:
+        return False
+
+
 def company_search_click(driver: WebDriver, actions: ActionChains, companyName: str) -> None:
     '''
     Tries to search and Add the company to company filters list.
@@ -156,6 +176,20 @@ def company_search_click(driver: WebDriver, actions: ActionChains, companyName: 
     actions.send_keys(Keys.DOWN).perform()
     actions.send_keys(Keys.ENTER).perform()
     print_lg(f'Tried searching and adding "{companyName}"')
+
+def dynamic_filter_click(driver: WebDriver, actions: ActionChains, text: str, filter_name: str) -> None:
+    '''
+    Clicks a dynamic filter value or searches it from the Add filter field.
+    '''
+    try:
+        button = driver.find_element(By.XPATH, './/span[normalize-space(.)="'+text+'"]')
+        scroll_to_view(driver, button)
+        button.click()
+        buffer(click_gap)
+    except Exception:
+        if not filter_search_click(driver, actions, filter_name, text):
+            print_lg(f'Click Failed! Didn\'t find "{text}" in {filter_name}')
+
 
 def text_input(actions: ActionChains, textInputEle: WebElement | bool, value: str, textFieldName: str = "Text") -> None | Exception:
     if textInputEle:
