@@ -19,8 +19,10 @@ version:    26.01.20.5.08
 import os
 import csv
 import re
+import sys
 import time
 import pyautogui
+from urllib.parse import quote
 
 # Set CSV field size limit to prevent field size errors
 csv.field_size_limit(1000000)  # Set to 1MB instead of default 131KB
@@ -95,6 +97,7 @@ notice_period_weeks = str(notice_period//7)
 notice_period = str(notice_period)
 
 aiClient = None
+selected_region_mode = "all"
 ##> ------ Dheeraj Deshwal : dheeraj9811 Email:dheeraj20194@iiitd.ac.in/dheerajdeshwal9811@gmail.com - Feature ------
 about_company_for_ai = None # TODO extract about company for AI
 ##<
@@ -181,6 +184,14 @@ def get_applied_job_ids() -> set[str]:
     return job_ids
 
 
+def get_location_geo_id(location_text: str) -> str:
+    '''
+    Returns a LinkedIn geoId for locations that need disambiguation.
+    '''
+    configured_geo_ids = globals().get("location_geo_ids", {})
+    return str(configured_geo_ids.get(location_text, "")).strip()
+
+
 
 def set_search_location(location_text: str | None = None) -> None:
     '''
@@ -260,11 +271,12 @@ def click_show_results_button() -> WebElement | bool:
     return False
 
 
-def apply_filters() -> None:
+def apply_filters(set_top_location: bool = True) -> None:
     '''
     Function to apply job search filters
     '''
-    set_search_location()
+    if set_top_location:
+        set_search_location()
 
     try:
         recommended_wait = 1 if click_gap < 1 else 0
@@ -285,14 +297,8 @@ def apply_filters() -> None:
         multi_sel_noWait(driver, on_site)
         if job_type or on_site: buffer(recommended_wait)
 
-        if easy_apply_only:
-            try:
-                boolean_button_click(driver, actions, "LinkedIn Apply")
-                linkedin_apply_switch = driver.find_element(By.XPATH, './/h3[normalize-space()="LinkedIn Apply"]/ancestor::fieldset//input[@role="switch"]')
-                if not linkedin_apply_switch.is_selected():
-                    boolean_button_click(driver, actions, "Easy Apply")
-            except Exception:
-                boolean_button_click(driver, actions, "Easy Apply")
+        if linkedin_apply_only:
+            boolean_button_click(driver, actions, "LinkedIn Apply")
         
         for industry_filter in industry:
             dynamic_filter_click(driver, actions, industry_filter, "industry")
@@ -570,8 +576,9 @@ def get_job_description(
                 print_lg(f'Found the word "master" in \n{jobDescription}')
                 found_masters = 2
             experience_required = extract_years_of_experience(jobDescription)
-            if current_experience > -1 and experience_required > current_experience + found_masters:
-                skipMessage = f'\n{jobDescription}\n\nExperience required {experience_required} > Current Experience {current_experience + found_masters}. Skipping this job!\n'
+            experience_threshold = max_required_experience + found_masters if max_required_experience > -1 else -1
+            if experience_threshold > -1 and experience_required > experience_threshold:
+                skipMessage = f'\n{jobDescription}\n\nExperience required {experience_required} > Max Allowed Experience Requirement {experience_threshold}. Skipping this job!\n'
                 skipReason = "Required experience is high"
                 skip = True
     except Exception as e:
@@ -589,8 +596,58 @@ def get_job_description(
 def upload_resume(modal: WebElement, resume: str) -> tuple[bool, str]:
     try:
         modal.find_element(By.NAME, "file").send_keys(os.path.abspath(resume))
-        return True, os.path.basename(default_resume_path)
+        return True, os.path.basename(resume)
     except: return False, "Previous resume"
+
+
+def is_chinese_job_description(job_description: str | None) -> bool:
+    '''
+    Detects whether the JD is primarily Chinese. Japanese text also uses CJK
+    characters, so detect kana first to avoid sending the Chinese resume to
+    Japanese postings.
+    '''
+    if not job_description or job_description == "Unknown":
+        return False
+    if is_japanese_job_description(job_description):
+        return False
+    cjk_chars = re.findall(r'[\u4e00-\u9fff]', job_description)
+    latin_chars = re.findall(r'[A-Za-z]', job_description)
+    if len(cjk_chars) >= 80:
+        return True
+    total_language_chars = len(cjk_chars) + len(latin_chars)
+    return total_language_chars > 0 and (len(cjk_chars) / total_language_chars) >= 0.25
+
+
+def is_japanese_job_description(job_description: str | None) -> bool:
+    '''
+    Detects Japanese JD text by hiragana/katakana. Kanji alone is not enough
+    because Chinese text shares the same Unicode block.
+    '''
+    if not job_description or job_description == "Unknown":
+        return False
+    kana_chars = re.findall(r'[\u3040-\u30ff]', job_description)
+    if len(kana_chars) >= 12:
+        return True
+    cjk_chars = re.findall(r'[\u4e00-\u9fff]', job_description)
+    latin_chars = re.findall(r'[A-Za-z]', job_description)
+    total_language_chars = len(kana_chars) + len(cjk_chars) + len(latin_chars)
+    return total_language_chars > 0 and (len(kana_chars) / total_language_chars) >= 0.08
+
+
+def choose_resume_for_job(job_description: str | None) -> str:
+    '''
+    Chooses Chinese or English resume based on JD language.
+    '''
+    if is_japanese_job_description(job_description):
+        print_lg(f'Japanese JD detected. Using English resume: "{default_resume_path}"')
+    elif is_chinese_job_description(job_description):
+        if os.path.exists(chinese_resume_path):
+            print_lg(f'Chinese JD detected. Using Chinese resume: "{chinese_resume_path}"')
+            return chinese_resume_path
+        print_lg(f'Chinese JD detected, but Chinese resume is missing: "{chinese_resume_path}". Falling back to English resume.')
+    else:
+        print_lg(f'English or unknown JD detected. Using English resume: "{default_resume_path}"')
+    return default_resume_path
 
 # Function to answer common questions for Easy Apply
 def is_china_work_location(work_location: str) -> bool:
@@ -633,8 +690,255 @@ def get_visa_sponsorship_answer(label: str, work_location: str, work_style: str)
     return sponsorship_answer
 
 
+def is_work_authorization_question(label: str) -> bool:
+    '''
+    Detects questions asking whether the applicant already has legal work authorization.
+    '''
+    normalized_label = label.lower()
+    authorization_phrases = [
+        "authorized to work",
+        "authorised to work",
+        "legally authorized",
+        "legally authorised",
+        "work authorization",
+        "work authorisation",
+        "work permit",
+        "right to work",
+        "eligible to work",
+        "eligibility to work",
+        "employment eligibility",
+    ]
+    return any(phrase in normalized_label for phrase in authorization_phrases)
+
+
+def get_work_authorization_answer(label: str, work_location: str) -> str:
+    '''
+    Answers whether the applicant already has work authorization for the job location.
+    '''
+    answer = "Yes" if is_china_work_location(work_location) else "No"
+    if "not authorized" in label or "not authorised" in label:
+        return reverse_yes_no(answer)
+    return answer
+
+
+def is_commute_question(label: str) -> bool:
+    '''
+    Detects questions asking whether the applicant can commute to the job location.
+    '''
+    normalized_label = label.lower()
+    english_phrases = [
+        "commute",
+        "travel to this location",
+        "travel to the location",
+        "work at this location",
+        "able to travel",
+    ]
+    japanese_phrases = ["通勤", "この場所への通勤", "勤務地への通勤"]
+    return any(phrase in normalized_label for phrase in english_phrases) or any(phrase in label for phrase in japanese_phrases)
+
+
+def get_commute_answer(label: str, work_location: str, work_style: str) -> str:
+    '''
+    Answers commute questions conservatively: China or remote jobs are okay; overseas onsite/hybrid commute is not.
+    '''
+    if (work_style or "").strip().lower() == "remote":
+        answer = "Yes"
+    elif is_china_work_location(work_location):
+        answer = "Yes"
+    else:
+        answer = "No"
+
+    if "cannot commute" in label.lower() or "通勤できません" in label:
+        return reverse_yes_no(answer)
+    return answer
+
+
+def is_previous_employee_question(label: str) -> bool:
+    '''
+    Detects questions asking whether the applicant is or was an employee of a company.
+    '''
+    normalized_label = label.lower()
+    english_previous_terms = ["previous", "previously", "former", "formerly", "ever", "current or former"]
+    english_employee_terms = ["employee", "employed", "worked for", "worked at", "work for", "work at"]
+    if any(term in normalized_label for term in english_previous_terms) and any(term in normalized_label for term in english_employee_terms):
+        return True
+    japanese_previous_terms = ["以前", "過去", "現在", "これまで"]
+    japanese_employee_terms = ["勤務", "在籍", "雇用", "従業員", "社員", "グループ会社", "関連会社", "子会社", "親会社"]
+    return any(term in label for term in japanese_previous_terms) and any(term in label for term in japanese_employee_terms)
+
+
+def is_japanese_proficiency_question(label: str) -> bool:
+    '''
+    Detects Japanese-language proficiency questions in English or Japanese.
+    '''
+    normalized_label = label.lower()
+    if "japanese" in normalized_label and any(term in normalized_label for term in ["language", "proficiency", "level", "skill", "jlpt"]):
+        return True
+    japanese_terms = ["日本語", "JLPT", "日本語能力"]
+    level_terms = ["レベル", "能力", "スキル", "会話", "読み書き", "資格", "N1", "N2", "N3", "N4", "N5"]
+    return any(term in label for term in japanese_terms) and any(term in label for term in level_terms)
+
+
+def is_english_proficiency_question(label: str) -> bool:
+    '''
+    Detects English-language proficiency questions.
+    '''
+    normalized_label = label.lower()
+    english_terms = ["english"]
+    level_terms = ["language", "proficiency", "level", "skill", "fluent", "fluency", "speaking", "writing", "reading"]
+    if any(term in normalized_label for term in english_terms) and any(term in normalized_label for term in level_terms):
+        return True
+    japanese_english_terms = ["英語"]
+    japanese_level_terms = ["レベル", "能力", "スキル", "会話", "読み書き"]
+    return any(term in label for term in japanese_english_terms) and any(term in label for term in japanese_level_terms)
+
+
+def is_chinese_proficiency_question(label: str) -> bool:
+    '''
+    Detects Chinese or Mandarin proficiency questions.
+    '''
+    normalized_label = label.lower()
+    language_terms = ["chinese", "mandarin", "cantonese"]
+    level_terms = ["language", "proficiency", "level", "skill", "fluent", "fluency", "speaking", "writing", "reading"]
+    if any(term in normalized_label for term in language_terms) and any(term in normalized_label for term in level_terms):
+        return True
+    chinese_terms = ["中文", "普通话", "普通話", "汉语", "漢語", "粤语", "粵語"]
+    chinese_level_terms = ["水平", "能力", "熟练", "熟練", "流利", "母语", "母語", "读写", "讀寫", "口语", "口語"]
+    if any(term in label for term in chinese_terms) and any(term in label for term in chinese_level_terms):
+        return True
+    japanese_chinese_terms = ["中国語", "北京語", "広東語"]
+    japanese_level_terms = ["レベル", "能力", "スキル", "会話", "読み書き"]
+    return any(term in label for term in japanese_chinese_terms) and any(term in label for term in japanese_level_terms)
+
+
+def is_interview_language_question(label: str) -> bool:
+    '''
+    Detects questions asking which language(s) the applicant can interview in.
+    '''
+    normalized_label = label.lower()
+    english_phrases = [
+        "language(s) in which you would feel comfortable interviewing",
+        "languages in which you would feel comfortable interviewing",
+        "comfortable interviewing",
+        "interview language",
+        "language for interview",
+    ]
+    japanese_phrases = ["面接時の希望言語", "面接の希望言語", "面接言語"]
+    return any(phrase in normalized_label for phrase in english_phrases) or any(phrase in label for phrase in japanese_phrases)
+
+
+def interview_language_fallback_phrases() -> list[str]:
+    configured_language = interview_language.strip()
+    fallback_phrases = [configured_language]
+    normalized_language = configured_language.lower()
+    if "english" in normalized_language or "英語" in configured_language:
+        fallback_phrases.extend(["English / 英語", "English", "英語"])
+    return list(dict.fromkeys(fallback_phrases))
+
+
+def language_proficiency_fallback_phrases(configured_level: str) -> list[str]:
+    '''
+    Phrases for matching a configured language level against common option wording.
+    '''
+    configured_level = configured_level.strip()
+    fallback_phrases = [configured_level]
+    normalized_level = configured_level.lower()
+    if normalized_level == "native":
+        fallback_phrases.extend(["Native", "Native or bilingual", "Bilingual", "Mother tongue", "母语", "母語", "母国語", "母国語またはバイリンガル", "バイリンガル"])
+    elif normalized_level in {"professional", "business"}:
+        fallback_phrases.extend(["Professional", "Proficient", "Proficient (CEFR - C1)", "CEFR - C1", "C1", "Business", "Business fluent", "Fluent", "Full professional proficiency", "熟练", "熟練", "商务", "商務", "ビジネス", "ビジネスレベル"])
+    elif normalized_level == "fluent":
+        fallback_phrases.extend(["Fluent", "Business fluent", "Professional", "Full professional proficiency", "流利", "熟练", "熟練", "ビジネス", "ビジネスレベル"])
+    elif normalized_level in {"conversational", "basic"}:
+        fallback_phrases.extend(["Conversational", "Basic", "Limited working proficiency", "基础", "基礎", "会话", "會話", "日常会話", "日常会話レベル"])
+    return list(dict.fromkeys(fallback_phrases))
+
+
+def english_proficiency_fallback_phrases() -> list[str]:
+    '''
+    Phrases for matching configured English proficiency against common option wording.
+    '''
+    return language_proficiency_fallback_phrases(english_proficiency)
+
+
+def chinese_proficiency_fallback_phrases() -> list[str]:
+    '''
+    Phrases for matching configured Chinese proficiency against common option wording.
+    '''
+    return language_proficiency_fallback_phrases(chinese_proficiency)
+
+
+def is_language_proficiency_question(label: str) -> bool:
+    return (
+        is_japanese_proficiency_question(label)
+        or is_english_proficiency_question(label)
+        or is_chinese_proficiency_question(label)
+    )
+
+
+def get_language_proficiency_answer(label: str) -> str:
+    if is_japanese_proficiency_question(label):
+        return japanese_proficiency
+    if is_english_proficiency_question(label):
+        return english_proficiency
+    if is_chinese_proficiency_question(label):
+        return chinese_proficiency
+    return ""
+
+
+def get_language_proficiency_fallback_phrases(label: str) -> list[str]:
+    if is_japanese_proficiency_question(label):
+        return japanese_proficiency_fallback_phrases()
+    if is_english_proficiency_question(label):
+        return english_proficiency_fallback_phrases()
+    if is_chinese_proficiency_question(label):
+        return chinese_proficiency_fallback_phrases()
+    return []
+
+
+def get_language_proficiency_manual_title(label: str) -> str:
+    if is_japanese_proficiency_question(label):
+        return "Japanese"
+    if is_english_proficiency_question(label):
+        return "English"
+    if is_chinese_proficiency_question(label):
+        return "Chinese"
+    return "Language"
+
+
+def japanese_proficiency_fallback_phrases() -> list[str]:
+    '''
+    Conservative phrases for matching "no Japanese proficiency" options.
+    '''
+    if japanese_proficiency.strip().lower() in {"none", "no", "n/a", "na", "not applicable"}:
+        return [
+            "None", "No", "No Japanese", "No proficiency", "N/A", "Not applicable",
+            "なし", "無し", "日本語なし", "日本語能力なし", "不可", "できません", "未経験", "まったく使えない"
+        ]
+    return [japanese_proficiency]
+
+
+def yes_no_fallback_phrases(answer: str) -> list[str]:
+    normalized_answer = (answer or "").strip().lower()
+    if normalized_answer == "yes":
+        return ["Yes", "Agree", "I do", "I have", "はい", "可能", "可", "有", "是"]
+    if normalized_answer == "no":
+        return ["No", "Disagree", "I don't", "I do not", "いいえ", "不可", "無", "没有", "否"]
+    return [answer]
+
+
 def answer_common_questions(label: str, answer: str, work_location: str, work_style: str) -> str:
-    if 'sponsorship' in label or 'visa' in label:
+    if is_previous_employee_question(label):
+        answer = previous_employee_answer
+    elif is_interview_language_question(label):
+        answer = interview_language
+    elif is_language_proficiency_question(label):
+        answer = get_language_proficiency_answer(label)
+    elif is_commute_question(label):
+        answer = get_commute_answer(label, work_location, work_style)
+    elif is_work_authorization_question(label):
+        answer = get_work_authorization_answer(label, work_location)
+    elif 'sponsorship' in label or 'visa' in label:
         answer = get_visa_sponsorship_answer(label, work_location, work_style)
     return answer
 
@@ -678,6 +982,8 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                     answer = gender
                 elif 'disability' in label: 
                     answer = disability_status
+                elif is_language_proficiency_question(label):
+                    answer = get_language_proficiency_answer(label)
                 elif 'proficiency' in label: 
                     answer = 'Professional'
                 # Add location handling
@@ -699,10 +1005,14 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                     possible_answer_phrases = []
                     if answer == 'Decline':
                         possible_answer_phrases = ["Decline", "not wish", "don't wish", "Prefer not", "not want"]
+                    elif is_interview_language_question(label):
+                        possible_answer_phrases = interview_language_fallback_phrases()
+                    elif is_language_proficiency_question(label):
+                        possible_answer_phrases = get_language_proficiency_fallback_phrases(label)
                     elif 'yes' in answer.lower():
-                        possible_answer_phrases = ["Yes", "Agree", "I do", "I have"]
+                        possible_answer_phrases = yes_no_fallback_phrases(answer)
                     elif 'no' in answer.lower():
-                        possible_answer_phrases = ["No", "Disagree", "I don't", "I do not"]
+                        possible_answer_phrases = yes_no_fallback_phrases(answer)
                     else:
                         # Try partial matching for any answer
                         possible_answer_phrases = [answer]
@@ -722,6 +1032,14 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                                 foundOption = True
                                 break
                     if not foundOption:
+                        if is_language_proficiency_question(label):
+                            language_name = get_language_proficiency_manual_title(label)
+                            print_lg(f'Could not match {language_name} proficiency answer "{answer}" for question "{label_org}". Please answer this question manually.')
+                            screenshot(driver, "manual", f"{language_name} proficiency question")
+                            pyautogui.alert(f'Please answer this {language_name} proficiency question manually:\n\n{label_org}\n\nConfigured answer: {answer}', f"Manual {language_name} Level Needed", "Continue")
+                            answer = select.first_selected_option.text
+                            questions_list.add((f'{label_org} [ {options} ]', answer, "select", prev_answer))
+                            continue
                         #TODO: Use AI to answer the question need to be implemented logic to extract the options for the question
                         print_lg(f'Failed to find an option with text "{answer}" for question labelled "{label_org}", answering randomly!')
                         select.select_by_index(randint(1, len(select.options)-1))
@@ -762,12 +1080,19 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                 if foundOption: 
                     actions.move_to_element(foundOption).click().perform()
                 else:    
-                    possible_answer_phrases = ["Decline", "not wish", "don't wish", "Prefer not", "not want"] if answer == 'Decline' else [answer]
+                    if answer == "Decline":
+                        possible_answer_phrases = ["Decline", "not wish", "don't wish", "Prefer not", "not want"]
+                    elif is_interview_language_question(label):
+                        possible_answer_phrases = interview_language_fallback_phrases()
+                    elif is_language_proficiency_question(label):
+                        possible_answer_phrases = get_language_proficiency_fallback_phrases(label)
+                    else:
+                        possible_answer_phrases = yes_no_fallback_phrases(answer)
                     ele = options[0]
                     answer = options_labels[0]
                     for phrase in possible_answer_phrases:
                         for i, option_label in enumerate(options_labels):
-                            if phrase in option_label:
+                            if phrase.lower() in option_label.lower():
                                 foundOption = options[i]
                                 ele = foundOption
                                 answer = f'Decline ({option_label})' if len(possible_answer_phrases) > 1 else option_label
@@ -781,8 +1106,17 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                     #             answer = f'Decline ({phrase})'
                     #             ele = foundOption
                     #             break
-                    actions.move_to_element(ele).click().perform()
-                    if not foundOption: randomly_answered_questions.add((f'{label_org} ]',"radio"))
+                    if foundOption:
+                        actions.move_to_element(ele).click().perform()
+                    elif is_language_proficiency_question(label):
+                        language_name = get_language_proficiency_manual_title(label)
+                        configured_answer = get_language_proficiency_answer(label)
+                        print_lg(f'Could not match {language_name} proficiency answer "{configured_answer}" for question "{label_org}". Please answer this question manually.')
+                        screenshot(driver, "manual", f"{language_name} proficiency question")
+                        pyautogui.alert(f'Please answer this {language_name} proficiency question manually:\n\n{label_org}\n\nConfigured answer: {configured_answer}', f"Manual {language_name} Level Needed", "Continue")
+                    else:
+                        actions.move_to_element(ele).click().perform()
+                        randomly_answered_questions.add((f'{label_org} ]',"radio"))
             else: answer = prev_answer
             questions_list.add((label_org+" ]", answer, "radio", prev_answer))
             continue
@@ -843,6 +1177,7 @@ def answer_questions(modal: WebElement, questions_list: set, work_location: str,
                 elif 'state' in label or 'province' in label: answer = state
                 elif 'zip' in label or 'postal' in label or 'code' in label: answer = zipcode
                 elif 'country' in label: answer = country
+                elif is_language_proficiency_question(label): answer = get_language_proficiency_answer(label)
                 else: answer = answer_common_questions(label, answer, work_location, work_style)
                 ##> ------ Yang Li : MARKYangL - Feature ------
                 if answer == "":
@@ -1079,11 +1414,20 @@ def apply_to_jobs(search_terms: list[str]) -> None:
 
     if randomize_search_order:  shuffle(search_terms)
     for searchTerm in search_terms:
-        driver.get(f"https://www.linkedin.com/jobs/search/?keywords={searchTerm}")
+        search_url = f"https://www.linkedin.com/jobs/search/?keywords={quote(searchTerm)}"
+        if search_location.strip():
+            search_url += f"&location={quote(search_location.strip())}"
+            search_geo_id = get_location_geo_id(search_location.strip())
+            if search_geo_id:
+                search_url += f"&geoId={quote(search_geo_id)}"
+        driver.get(search_url)
         print_lg("\n________________________________________________________________________________________________________________________\n")
-        print_lg(f'\n>>>> Now searching for "{searchTerm}" <<<<\n\n')
+        if search_location.strip() and get_location_geo_id(search_location.strip()):
+            print_lg(f'\n>>>> Now searching for "{searchTerm}" in "{search_location.strip()}" (geoId: {get_location_geo_id(search_location.strip())}) <<<<\n\n')
+        else:
+            print_lg(f'\n>>>> Now searching for "{searchTerm}" in "{search_location.strip() or "default location"}" <<<<\n\n')
 
-        apply_filters()
+        apply_filters(set_top_location=False)
 
         current_count = 0
         try:
@@ -1123,6 +1467,7 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                     date_listed = "Unknown"
                     skills = "Needs an AI" # Still in development
                     resume = "Pending"
+                    selected_resume_path = default_resume_path
                     reposted = False
                     questions_list = None
                     screenshot_name = "Not Available"
@@ -1187,6 +1532,7 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                         rejected_jobs.add(job_id)
                         skip_count += 1
                         continue
+                    selected_resume_path = choose_resume_for_job(description)
 
                     
                     if use_AI and description != "Unknown":
@@ -1271,7 +1617,7 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                                         errored = "stuck"
                                         raise Exception("Seems like stuck in a continuous loop of next, probably because of new questions.")
                                     questions_list = answer_questions(modal, questions_list, work_location, work_style, job_description=description)
-                                    if useNewResume and not uploaded: uploaded, resume = upload_resume(modal, default_resume_path)
+                                    if useNewResume and not uploaded: uploaded, resume = upload_resume(modal, selected_resume_path)
                                     try:
                                         next_button = modal.find_element(By.XPATH, './/span[normalize-space(.)="Review"]/ancestor::button[1]')
                                     except NoSuchElementException:
@@ -1323,7 +1669,9 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                         if skip: continue
 
                     submitted_jobs(job_id, title, company, work_location, work_style, description, experience_required, skills, hr_name, hr_link, resume, reposted, date_listed, date_applied, job_link, application_link, questions_list, connect_request)
-                    if uploaded:   useNewResume = False
+                    # Keep uploading the selected resume for each job because
+                    # resume choice can change by JD language.
+                    useNewResume = True
 
                     print_lg(f'Successfully saved "{title} | {company}" job. Job ID: {job_id} info')
                     current_count += 1
@@ -1360,7 +1708,170 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                 print_lg(f"Failed to get page source, browser might have crashed. {page_source_error}")
             # print_lg(e)
 
-        
+
+def normalize_region_mode(value: str | None) -> str | None:
+    '''
+    Normalizes runtime region choices from CLI, env vars, or the startup dialog.
+    '''
+    if not value:
+        return None
+    normalized_value = value.strip().lower().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "china": "china",
+        "cn": "china",
+        "domestic": "china",
+        "mainland": "china",
+        "mainland_china": "china",
+        "china_only": "china",
+        "beijing": "beijing",
+        "beijing_only": "beijing",
+        "bj": "beijing",
+        "shanghai": "shanghai",
+        "shanghai_only": "shanghai",
+        "sh": "shanghai",
+        "overseas": "overseas",
+        "global": "overseas",
+        "international": "overseas",
+        "abroad": "overseas",
+        "overseas_only": "overseas",
+        "japan": "japan",
+        "jp": "japan",
+        "united_states": "united_states",
+        "usa": "united_states",
+        "us": "united_states",
+        "america": "united_states",
+        "canada": "canada",
+        "ca": "canada",
+        "united_kingdom": "united_kingdom",
+        "uk": "united_kingdom",
+        "great_britain": "united_kingdom",
+        "australia": "australia",
+        "au": "australia",
+        "singapore": "singapore",
+        "sg": "singapore",
+        "hong_kong": "hong_kong",
+        "hong_kong_sar": "hong_kong",
+        "hk": "hong_kong",
+        "all": "all",
+        "both": "all",
+        "all_regions": "all",
+    }
+    return aliases.get(normalized_value)
+
+
+def get_region_mode_from_runtime() -> str | None:
+    '''
+    Reads region choice from --region, --region=value, or AUTO_APPLY_REGION.
+    '''
+    for index, argument in enumerate(sys.argv[1:]):
+        if argument == "--region" and index + 2 <= len(sys.argv[1:]):
+            return normalize_region_mode(sys.argv[index + 2])
+        if argument.startswith("--region="):
+            return normalize_region_mode(argument.split("=", 1)[1])
+    return normalize_region_mode(os.environ.get("AUTO_APPLY_REGION"))
+
+
+def choose_region_mode() -> str:
+    '''
+    Chooses which configured search rounds to run without editing config files.
+    '''
+    runtime_region = get_region_mode_from_runtime()
+    if runtime_region:
+        print_lg(f'Search region selected from runtime option: "{runtime_region}"')
+        return runtime_region
+
+    choice = pyautogui.confirm(
+        text="Choose which region to auto-apply for this run.\n\nYou can skip this dialog next time with commands like:\nuv run python runAiBot.py --region japan\nuv run python runAiBot.py --region united-states\nuv run python runAiBot.py --region singapore\nuv run python runAiBot.py --region overseas\nuv run python runAiBot.py --region all",
+        title="Choose Search Region",
+        buttons=["China only", "Beijing only", "Shanghai only", "Japan", "United States", "Canada", "More overseas"],
+    )
+    dialog_choices = {
+        "China only": "china",
+        "Beijing only": "beijing",
+        "Shanghai only": "shanghai",
+        "Japan": "japan",
+        "United States": "united_states",
+        "Canada": "canada",
+    }
+    if choice == "More overseas":
+        choice = pyautogui.confirm(
+            text="Choose a specific overseas market, or run all overseas/all regions.",
+            title="Choose Overseas Market",
+            buttons=["United Kingdom", "Australia", "Singapore", "Hong Kong SAR", "All overseas", "All regions"],
+        )
+        dialog_choices.update({
+            "United Kingdom": "united_kingdom",
+            "Australia": "australia",
+            "Singapore": "singapore",
+            "Hong Kong SAR": "hong_kong",
+            "All overseas": "overseas",
+            "All regions": "all",
+        })
+    selected_region = dialog_choices.get(choice, "all")
+    print_lg(f'Search region selected from dialog: "{selected_region}"')
+    return selected_region
+
+
+def overseas_location_for_region(region_mode: str) -> str | None:
+    '''
+    Maps country-level runtime region choices to LinkedIn search locations.
+    '''
+    locations_by_region = {
+        "japan": "Japan",
+        "united_states": "United States",
+        "canada": "Canada",
+        "united_kingdom": "United Kingdom",
+        "australia": "Australia",
+        "singapore": "Singapore",
+        "hong_kong": "Hong Kong SAR",
+    }
+    return locations_by_region.get(region_mode)
+
+
+def filter_search_rounds_by_region(configured_search_rounds: list[dict], region_mode: str) -> list[dict]:
+    '''
+    Filters configured search rounds by their region tag.
+    '''
+    if region_mode == "all":
+        return configured_search_rounds
+    if region_mode in {"beijing", "shanghai"}:
+        target_location = "Beijing, China" if region_mode == "beijing" else "Shanghai, China"
+        selected_rounds = []
+        for search_round in configured_search_rounds:
+            if normalize_region_mode(search_round.get("region")) != "china":
+                continue
+            selected_round = dict(search_round)
+            selected_round["name"] = f'{search_round.get("name", "China")} - {target_location}'
+            selected_round["location"] = [target_location]
+            selected_rounds.append(selected_round)
+        if not selected_rounds:
+            print_lg(f'No China search rounds were available for "{target_location}". Falling back to all configured rounds.')
+            return configured_search_rounds
+        return selected_rounds
+    target_overseas_location = overseas_location_for_region(region_mode)
+    if target_overseas_location:
+        selected_rounds = []
+        for search_round in configured_search_rounds:
+            if normalize_region_mode(search_round.get("region")) != "overseas":
+                continue
+            selected_round = dict(search_round)
+            selected_round["name"] = f'{search_round.get("name", "Overseas")} - {target_overseas_location}'
+            selected_round["location"] = [target_overseas_location]
+            selected_rounds.append(selected_round)
+        if not selected_rounds:
+            print_lg(f'No overseas search rounds were available for "{target_overseas_location}". Falling back to all configured rounds.')
+            return configured_search_rounds
+        return selected_rounds
+    selected_rounds = [
+        search_round for search_round in configured_search_rounds
+        if normalize_region_mode(search_round.get("region")) == region_mode
+    ]
+    if not selected_rounds:
+        print_lg(f'No search rounds matched region "{region_mode}". Falling back to all configured rounds.')
+        return configured_search_rounds
+    return selected_rounds
+
+
 def run(total_runs: int) -> int:
     global location, on_site, search_location
     if dailyEasyApplyLimitReached:
@@ -1369,7 +1880,7 @@ def run(total_runs: int) -> int:
     print_lg(f"Date and Time: {datetime.now()}")
     print_lg(f"Cycle number: {total_runs}")
     print_lg(f"Currently looking for jobs posted within '{date_posted}' and sorting them by '{sort_by}'")
-    configured_search_rounds = globals().get("search_rounds", [])
+    configured_search_rounds = filter_search_rounds_by_region(globals().get("search_rounds", []), selected_region_mode)
     if configured_search_rounds:
         default_location = location
         default_on_site = on_site
@@ -1416,9 +1927,10 @@ def main() -> None:
     pyautogui.alert("Please consider sponsoring this project at:\n\nhttps://github.com/sponsors/GodsScion\n\n", "Support the project", "Okay")
     total_runs = 1
     try:
-        global linkedIn_tab, tabs_count, useNewResume, aiClient
+        global linkedIn_tab, tabs_count, useNewResume, aiClient, selected_region_mode
         alert_title = "Error Occurred. Closing Browser!"
         validate_config()
+        selected_region_mode = choose_region_mode()
         
         if not os.path.exists(default_resume_path):
             pyautogui.alert(text='Your default resume "{}" is missing! Please update it\'s folder path "default_resume_path" in config.py\n\nOR\n\nAdd a resume with exact name and path (check for spelling mistakes including cases).\n\n\nFor now the bot will continue using your previous upload from LinkedIn!'.format(default_resume_path), title="Missing Resume", button="OK")

@@ -84,8 +84,14 @@ def validate_questions() -> None | ValueError | TypeError:
     __validation_file_path = "config/questions.py"
 
     check_string(default_resume_path, "default_resume_path")
+    check_string(chinese_resume_path, "chinese_resume_path")
     check_string(years_of_experience, "years_of_experience")
     check_string(require_visa, "require_visa", ["Yes", "No"])
+    check_string(japanese_proficiency, "japanese_proficiency")
+    check_string(interview_language, "interview_language")
+    check_string(english_proficiency, "english_proficiency")
+    check_string(chinese_proficiency, "chinese_proficiency")
+    check_string(previous_employee_answer, "previous_employee_answer", ["Yes", "No"])
     check_string(website, "website")
     check_string(linkedIn, "linkedIn")
     check_int(desired_salary, "desired_salary")
@@ -123,6 +129,7 @@ def validate_search() -> None | ValueError | TypeError:
     else:
         check_string(salary, "salary")
 
+    check_boolean(linkedin_apply_only, "linkedin_apply_only")
     check_boolean(easy_apply_only, "easy_apply_only")
 
     check_list(experience_level, "experience_level", ["Internship", "Entry level", "Associate", "Mid-Senior level", "Director", "Executive"])
@@ -151,6 +158,7 @@ def validate_search() -> None | ValueError | TypeError:
     check_boolean(security_clearance, "security_clearance")
     check_boolean(did_masters, "did_masters")
     check_int(current_experience, "current_experience", -1)
+    check_int(max_required_experience, "max_required_experience", -1)
 
 
 

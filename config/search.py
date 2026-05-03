@@ -52,7 +52,13 @@ sort_by = "Most recent"                       # "Most recent", "Most relevant" o
 date_posted = "Past month"        # "Any time", "Past month", "Past week", "Past 24 hours" or ("" to not select)
 salary = []                       # LinkedIn currently has no built-in salary filter here; visible salary cards are checked later.
 
-easy_apply_only = True             # True or False, Note: True or False are case-sensitive
+linkedin_apply_only = True         # True or False, Note: True or False are case-sensitive
+easy_apply_only = linkedin_apply_only  # Backward-compatible alias used by older code paths.
+
+location_geo_ids = {
+    "Shanghai, China": "102772228",
+    "Beijing, China": "103873152",
+}
 
 experience_level = ["Entry level", "Associate", "Mid-Senior level"]              # (multiple select) "Internship", "Entry level", "Associate", "Mid-Senior level", "Director", "Executive"
 job_type = ["Full-time"]                      # (multiple select) "Full-time", "Part-time", "Contract", "Temporary", "Volunteer", "Internship", "Other"
@@ -72,12 +78,14 @@ commitments = []                   # (dynamic multiple select)
 search_rounds = [
     {
         "name": "Shanghai and Beijing",
+        "region": "china",
         "search_terms": ["Data Analyst", "Business Analyst", "Data Scientist", "AI Agent"],
         "location": ["Shanghai, China", "Beijing, China"],
         "on_site": [],
     },
     {
         "name": "Overseas",
+        "region": "overseas",
         "search_terms": ["Data Analyst", "Business Analyst", "Data Scientist", "AI Agent"],
         "location": ["Japan", "United States", "Canada", "United Kingdom", "Australia", "Singapore", "Hong Kong SAR", ],
         "on_site": [],
@@ -92,7 +100,7 @@ fair_chance_employer = False       # True or False, Note: True or False are case
 ## >>>>>>>>>>> RELATED SETTING <<<<<<<<<<<
 
 # Pause after applying filters to let you modify the search results and filters?
-pause_after_filters = True         # True or False, Note: True or False are case-sensitive
+pause_after_filters = False         # True or False, Note: True or False are case-sensitive
 
 ##
 
@@ -120,8 +128,10 @@ security_clearance = False         # True or False, Note: True or False are case
 # Do you have a Masters degree? (True for Yes and False for No). If True, the tool will apply to jobs containing the word 'master' in their job description and if it's experience required <= current_experience + 2 and current_experience is not set as -1. 
 did_masters = False                 # True or False, Note: True or False are case-sensitive
 
-# Avoid applying to jobs if their required experience is above your current_experience. (Set value as -1 if you want to apply to all ignoring their required experience...)
-current_experience = 3             # Integers > -2 (Ex: -1, 0, 1, 2, 3, 4...)
+# Avoid applying to jobs if their required experience is above this threshold.
+# Set max_required_experience to -1 if you want to ignore experience requirements.
+current_experience = 3             # Your actual years of experience. Used for form answers and reference.
+max_required_experience = 5        # Apply to jobs requiring up to 5 years; skip 6+ years.
 ##
 
 

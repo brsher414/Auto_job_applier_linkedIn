@@ -22,12 +22,32 @@ version:    26.01.20.5.08
 
 # Give an relative path of your default resume to be uploaded. If file in not found, will continue using your previously uploaded resume in LinkedIn.
 default_resume_path = "resume/resume_zhibi_liu_en.pdf"      # (In Development)
+chinese_resume_path = "resume/简历_刘之璧_v.pdf"
 
 # What do you want to answer for questions that ask about years of experience you have, this is different from current_experience? 
 years_of_experience = "3"          # A number in quotes Eg: "0","1","2","3","4", etc.
 
 # Do you need visa sponsorship now or in future?
 require_visa = "Yes"               # "Yes" or "No"
+
+# Japanese language level for Japan applications. Match the wording used by forms when possible.
+# Examples: "None", "Basic", "Conversational", "Business", "Native", "JLPT N2"
+japanese_proficiency = "None"
+
+# Interview language preference. Match the wording used by forms when possible.
+# Examples: "English / 英語", "English", "英語"
+interview_language = "English / 英語"
+
+# English language level. Match the wording used by forms when possible.
+# Examples: "Professional", "Fluent", "Business", "Native", "Conversational"
+english_proficiency = "Professional"
+
+# Chinese / Mandarin language level. Match the wording used by forms when possible.
+# Examples: "Native", "Fluent", "Business", "Professional", "Conversational"
+chinese_proficiency = "Native"
+
+# Have you previously worked for this company, its group companies, or another named company?
+previous_employee_answer = "No"
 
 # What is the link to your portfolio website, leave it empty as "", if you want to leave this question unanswered
 website = ""                        # "www.example.bio" or "" and so on....
@@ -84,11 +104,11 @@ then it will divide by 30 or 7 and answer respectively. Examples:
 '''
 
 # Your LinkedIn headline in quotes Eg: "Software Engineer @ Google, Masters in Computer Science", "Recent Grad Student @ MIT, Computer Science"
-linkedin_headline = "Senior Data Specialist | SQL, Python, PyTorch, Data Quality, NLP" # "Headline" or "" to leave this question unanswered
+linkedin_headline = "Senior Data Analyst | SQL, Python, PyTorch, Data Quality, NLP" # "Headline" or "" to leave this question unanswered
 
 # Your summary in quotes, use \n to add line breaks if using single quotes "Summary".You can skip \n if using triple quotes """Summary"""
 linkedin_summary = """
-Data specialist with 3+ years of experience across e-commerce data operations, data quality improvement, market research, and analytics workflow automation. Experienced in SQL, Python, PyTorch, Streamlit, Oracle, Hadoop ecosystem tools, Power BI, and NLP-related data scenarios. I have worked on classification bad-case analysis, rule iteration, high-risk sample selection, OCR/model matching automation, and lightweight tools that improve data validation and delivery efficiency.
+Data analyst with 3+ years of experience across e-commerce data operations, data quality improvement, market research, and analytics workflow automation. Experienced in SQL, Python, PyTorch, Streamlit, Oracle, Hadoop ecosystem tools, Power BI, and NLP-related data scenarios. I have worked on classification bad-case analysis, rule iteration, high-risk sample selection, OCR/model matching automation, and lightweight tools that improve data validation and delivery efficiency.
 """
 
 '''
@@ -99,7 +119,7 @@ Note: If left empty as "", the tool will not answer the question. However, note 
 cover_letter = """
 Dear Hiring Team,
 
-I am interested in this opportunity because it aligns with my experience in data analysis, data quality improvement, SQL/Python-based investigation, and analytics workflow automation. In my current Senior Data Specialist role, I support large-scale data extraction, validation, classification issue analysis, and process tooling for e-commerce data products. I also have practical experience with PyTorch, BERT-based sample screening, OCR/model matching, and multimodal model API evaluation.
+I am interested in this opportunity because it aligns with my experience in data analysis, data quality improvement, SQL/Python-based investigation, and analytics workflow automation. In my current Senior Data Analyst role, I support large-scale data extraction, validation, classification issue analysis, and process tooling for e-commerce data products. I also have practical experience with PyTorch, BERT-based sample screening, OCR/model matching, and multimodal model API evaluation.
 
 I would welcome the chance to discuss how my analytical background and hands-on tooling experience can support your team.
 
@@ -120,7 +140,7 @@ Education:
 Bachelor of Science in Mathematics, The University of Texas at Austin, 2018.08 - 2022.05, GPA 3.6/4.0.
 
 Recent experience:
-Senior Data Specialist, NielsenIQ Shanghai, 2024.12 - Present. Work includes SQL-based data extraction and validation, classification bad-case analysis for BERT + rule workflows, SQL / PL-SQL rule iteration in HUE and Oracle, high-risk sample screening with local BERT vectorization in PyTorch, and Streamlit + Oracle productivity tooling.
+Senior Data Analyst, NielsenIQ Shanghai, 2024.12 - Present. Work includes SQL-based data extraction and validation, classification bad-case analysis for BERT + rule workflows, SQL / PL-SQL rule iteration in HUE and Oracle, high-risk sample screening with local BERT vectorization in PyTorch, and Streamlit + Oracle productivity tooling.
 
 Previous experience:
 Business Analyst, Shanghai Xuankai Business Consulting, 2022.11 - 2024.11. Work included questionnaire data processing, desk research, consumer and market analysis, client reporting, and proposal communication for luxury and sportswear-related market research projects.
@@ -149,7 +169,7 @@ confidence_level = "8"             # Any number between "1" to "10" including 1 
 
 ## Allow Manual Inputs
 # Should the tool pause before every submit application during easy apply to let you check the information?
-pause_before_submit = True         # True or False, Note: True or False are case-sensitive
+pause_before_submit = False         # True or False, Note: True or False are case-sensitive
 '''
 Note: Will be treated as False if `run_in_background = True`
 '''

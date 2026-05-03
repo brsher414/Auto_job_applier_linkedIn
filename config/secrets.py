@@ -20,7 +20,7 @@ version:    24.12.3.10.30
 
 # Login Credentials for LinkedIn (Optional)
 username = "labo2001.bl@gmail.com"       # Enter your username in the quotes
-password = ""           # Enter your password in the quotes
+password = "luzexuan0211"           # Enter your password in the quotes
 
 
 ## Artificial Intelligence (Beta Not-Recommended)

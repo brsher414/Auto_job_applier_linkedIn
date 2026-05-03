@@ -15,7 +15,7 @@
 
 - 增加 `pyproject.toml`，用 `uv` 管理本地环境和依赖。
 - 增加 `.python-version` 和 `uv.lock`，让 Python 与依赖版本更可控。
-- 增加 `UV_SETUP.md`，记录常用安装、校验和启动命令。
+- 在本文档中记录常用安装、校验和启动命令。
 
 常用命令：
 
@@ -38,8 +38,12 @@ uv run python -m py_compile runAiBot.py
 - 增加英文简历 HTML 和 PDF：
   - `resume/resume_zhibi_liu_en.html`
   - `resume/resume_zhibi_liu_en.pdf`
-- 增加 `scripts/generate_english_resume_pdf.py` 用于生成英文 PDF。
+- 增加统一的 HTML 转 PDF 脚本：`scripts/generate_resume_pdfs.py`。
+- `scripts/generate_english_resume_pdf.py` 保留为英文 PDF 生成入口，但也改为从 HTML 打印，而不是用 FPDF 重新排版。
 - 将默认投递简历改为 `resume/resume_zhibi_liu_en.pdf`。
+- 增加 `chinese_resume_path`，当前指向中文 PDF 简历。
+- 投递时会按 JD 语言选择简历：中文 JD 用中文简历，英文或未知 JD 用英文简历。
+- 如果中文 JD 被识别出来但中文简历文件不存在，会自动回退英文简历。
 
 ## 3. 搜索目标和用户背景不匹配
 
@@ -59,8 +63,45 @@ uv run python -m py_compile runAiBot.py
 - 当前搜索轮次：
   - `Shanghai and Beijing`
   - `Overseas`
+- 每个搜索轮次增加 `region` 标签：
+  - 国内轮次：`china`
+  - 海外轮次：`overseas`
 
-## 4. LinkedIn 的 Location filter 不可靠
+## 4. 不用手动改配置决定投递地区
+
+痛点：
+
+- 之前想只投国内、只投海外或全部都投，需要手动编辑 `config/search.py`。
+- 临时切换投递地区容易忘记改回去，也容易改错。
+
+解决：
+
+- 启动时增加地区选择弹窗：
+  - China only
+  - Beijing only
+  - Shanghai only
+  - Overseas only
+  - All regions
+- 支持命令行参数跳过弹窗：
+
+```powershell
+uv run python runAiBot.py --region beijing
+uv run python runAiBot.py --region shanghai
+uv run python runAiBot.py --region china
+uv run python runAiBot.py --region overseas
+uv run python runAiBot.py --region all
+```
+
+- 也支持环境变量：
+
+```powershell
+$env:AUTO_APPLY_REGION="china"; uv run python runAiBot.py
+```
+
+- 这样日常切换地区不需要再改配置文件。
+- 北京单独运行会只保留 `Beijing, China`，并继续使用北京 `geoId`，避免 LinkedIn 自动解析到下属地点。
+
+## 5. LinkedIn 的 Location filter 不可靠
 
 痛点：
 
@@ -73,8 +114,9 @@ uv run python -m py_compile runAiBot.py
 - 每个地点单独输入并搜索。
 - 执行顺序是地点优先：先把顶部 Location 设为一个地点，再跑该地点下的全部搜索词。
 - `All filters` 里不再动态选择 Location。
+- 对上海和北京增加 LinkedIn `geoId`，避免 LinkedIn 把 `Beijing, China` 自动解析成北京下属的小地点，例如 `Xinchengzi, Beijing, China`。
 
-## 5. 筛选条件过窄，容易漏掉合适岗位
+## 6. 筛选条件过窄，容易漏掉合适岗位
 
 痛点：
 
@@ -93,7 +135,7 @@ uv run python -m py_compile runAiBot.py
   - Mid-Senior level
 - 重新开启 `LinkedIn Apply`，优先保证自动投递流程可控。
 
-## 6. LinkedIn 没有可用的薪资内置筛选
+## 7. LinkedIn 没有可用的薪资内置筛选
 
 痛点：
 
@@ -119,7 +161,7 @@ Visible salary card text for "Data Analyst | Example Company": CN¥25K/month - C
 Detected LinkedIn visible salary ceiling: 35000 CNY/month
 ```
 
-## 7. 中文 LinkedIn 页面兼容成本太高
+## 8. 中文 LinkedIn 页面兼容成本太高
 
 痛点：
 
@@ -146,22 +188,23 @@ Detected LinkedIn visible salary ceiling: 35000 CNY/month
 - 这不会删除中文公司黑名单，例如 `尼尔森`。
 - 这也不会删除国内薪资里的 `CN¥` 解析，因为它不是中文 UI，而是薪资格式。
 
-## 8. LinkedIn Apply / Easy Apply 行为差异
+## 9. LinkedIn Apply 行为差异
 
 痛点：
 
 - 外部申请页面通常不能由这个工具继续自动填写。
 - 自动投递主要依赖 LinkedIn 内部申请弹窗。
-- LinkedIn 新页面有时显示 `LinkedIn Apply`，老逻辑只找 `Easy Apply` 容易失败。
+- LinkedIn 新页面筛选项已经是 `LinkedIn Apply`，不再是旧文案 `Easy Apply`。
 
 解决：
 
-- 筛选阶段优先打开 `LinkedIn Apply`。
-- 如果没有该开关，再回退到 `Easy Apply`。
+- 增加明确配置 `linkedin_apply_only = True`。
+- 筛选阶段只打开 `LinkedIn Apply`。
+- `easy_apply_only` 只作为旧代码兼容别名保留，不再作为主要配置入口。
 - 申请阶段也增加了内部申请弹窗检测。
 - 如果识别为外部申请，会记录或跳过，不强行处理第三方网站。
 
-## 9. Chrome / Driver 版本容易报错
+## 10. Chrome / Driver 版本容易报错
 
 痛点：
 
@@ -175,7 +218,7 @@ Detected LinkedIn visible salary ceiling: 35000 CNY/month
 - 修复 Windows 临时 Chrome profile 路径，只返回路径本身，不重复拼 `--user-data-dir=...`。
 - 保留 `safe_mode = True`，使用本地 `.chrome-profile` 运行时 profile。
 
-## 10. 表单回答更贴近当前投递场景
+## 11. 表单回答更贴近当前投递场景
 
 痛点：
 
@@ -187,11 +230,22 @@ Detected LinkedIn visible salary ceiling: 35000 CNY/month
 
 - 增加中国地点识别逻辑。
 - 中国岗位的 sponsorship 默认按不需要处理。
-- 非中国 remote 岗位可按需要 sponsorship 处理。
+- 非中国岗位的 sponsorship / visa 问题按需要 sponsorship 处理。
+- 工作许可问题和 sponsorship 问题分开处理：海外岗位不会自动声明已经持有当地 work authorization / work permit。
 - 遇到 `without sponsorship` 这类反向问法会自动反转 Yes/No。
 - 如果表单下拉项里有 `+86`，优先选择中国区号。
+- 增加日本岗位日语水平配置：`japanese_proficiency`。
+- 日语水平题支持英文和日文标签识别，例如 Japanese proficiency / 日本語 / JLPT。
+- 如果日语水平题无法匹配到安全选项，程序会提示手动处理，不会随机乱选。
+- 增加英语水平配置：`english_proficiency`，默认 `Professional`。
+- 英语水平题支持 English proficiency / English level / English fluency 等标签识别。
+- 如果英语水平题无法匹配到配置选项，程序会提示手动处理，不会随机乱选。
+- 增加中文/普通话水平配置：`chinese_proficiency`，默认 `Native`。
+- 中文水平题支持 Chinese / Mandarin / Cantonese / 中文 / 普通话 / 粤语 等标签识别。
+- 如果中文水平题无法匹配到配置选项，程序会提示手动处理，不会随机乱选。
+- 对“是否曾经/当前是本公司、集团公司或其他指定公司的雇员”这类问题，默认回答 `No`。
 
-## 11. 运行时可观察性不足
+## 12. 运行时可观察性不足
 
 痛点：
 
@@ -208,7 +262,7 @@ Detected LinkedIn visible salary ceiling: 35000 CNY/month
 No visible CNY salary found for "...". Salary filter will not skip it.
 ```
 
-## 12. 当前保留的主要策略
+## 13. 当前保留的主要策略
 
 - 搜索地点：上海、北京优先，然后海外地点。
 - 搜索词：Data Analyst / Business Analyst / Data Scientist / AI Agent。
@@ -223,7 +277,7 @@ No visible CNY salary found for "...". Salary filter will not skip it.
 - 海外薪资：不限制。
 - 黑名单：保留 Nielsen / NielsenIQ / 尼尔森等。
 
-## 13. 校验
+## 14. 校验
 
 每次主要改动后使用以下命令校验：
 
@@ -238,7 +292,7 @@ uv run python -c "from modules.validator import validate_config; print(validate_
 True
 ```
 
-## 14. 运行时生成文件
+## 15. 运行时生成文件
 
 这些是运行或测试时生成的本地文件，不属于功能改动：
 
@@ -246,4 +300,3 @@ True
 - `.edge-pdf-profile/`
 - 日志文件。
 - 截图文件。
-

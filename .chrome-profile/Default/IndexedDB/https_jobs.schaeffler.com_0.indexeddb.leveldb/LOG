@@ -1,0 +1,18 @@
+2026/04/30-16:23:30.398 c20 Creating DB D:\code\Auto_job_applier_linkedIn\.chrome-profile\Default\IndexedDB\https_jobs.schaeffler.com_0.indexeddb.leveldb since it was missing.
+2026/04/30-16:23:30.400 c20 Reusing MANIFEST D:\code\Auto_job_applier_linkedIn\.chrome-profile\Default\IndexedDB\https_jobs.schaeffler.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/04/30-16:23:30.405 4b34 Level-0 table #5: started
+2026/04/30-16:23:30.406 4b34 Level-0 table #5: 675 bytes OK
+2026/04/30-16:23:30.408 4b34 Delete type=0 #3
+2026/04/30-16:23:30.408 4b34 Manual compaction at level-0 from '\x00\x01\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x02\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/04/30-16:23:32.439 c20 Level-0 table #7: started
+2026/04/30-16:23:32.440 c20 Level-0 table #7: 1466 bytes OK
+2026/04/30-16:23:32.441 c20 Delete type=0 #4
+2026/04/30-16:23:32.441 c20 Manual compaction at level-0 from (begin) .. (end); will stop at (end)
+2026/04/30-16:23:32.441 c20 Manual compaction at level-1 from (begin) .. (end); will stop at '\x00\x02\x01\x02\x013\x00[\x00D\x00E\x00F\x00A\x00U\x00L\x00T\x00]\x00!\x001\x00:\x008\x001\x000\x006\x005\x002\x009\x003\x000\x006\x003\x004\x00:\x00w\x00e\x00b\x00:\x000\x009\x002\x005\x00f\x00e\x00e\x009\x005\x006\x001\x004\x004\x006\x00f\x006\x000\x005\x008\x00c\x00b\x003' @ 68 : 1
+2026/04/30-16:23:32.441 c20 Compacting 1@1 + 1@2 files
+2026/04/30-16:23:32.442 c20 Generated table #8@1: 21 keys, 998 bytes
+2026/04/30-16:23:32.442 c20 Compacted 1@1 + 1@2 files => 998 bytes
+2026/04/30-16:23:32.443 c20 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/30-16:23:32.443 c20 Delete type=2 #5
+2026/04/30-16:23:32.443 c20 Delete type=2 #7
+2026/04/30-16:23:32.443 c20 Manual compaction at level-1 from '\x00\x02\x01\x02\x013\x00[\x00D\x00E\x00F\x00A\x00U\x00L\x00T\x00]\x00!\x001\x00:\x008\x001\x000\x006\x005\x002\x009\x003\x000\x006\x003\x004\x00:\x00w\x00e\x00b\x00:\x000\x009\x002\x005\x00f\x00e\x00e\x009\x005\x006\x001\x004\x004\x006\x00f\x006\x000\x005\x008\x00c\x00b\x003' @ 68 : 1 .. (end); will stop at (end)
